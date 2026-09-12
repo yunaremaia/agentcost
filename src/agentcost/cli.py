@@ -294,6 +294,81 @@ def alert(log_paths, threshold):
 
 
 @cli.command()
+@click.option("--job", "-j", default=None, help="Specific job ID to analyze")
+@click.option("--limit", "-l", default=5, help="Max output files per job")
+@click.option("--json-output", "json_out", is_flag=True, help="Output as JSON")
+def cron(job, limit, json_out):
+    """Analyze Hermes cron outputs and estimate cost per task."""
+    from agentcost.hermes_output import HermesOutputParser
+
+    parser = HermesOutputParser()
+
+    if job:
+        usages = parser.parse_job_outputs(job, limit=limit)
+    else:
+        usages = []
+        for jid in parser.list_jobs():
+            usages.extend(parser.parse_job_outputs(jid, limit=limit))
+
+    if not usages:
+        console.print("[yellow]No cron outputs found.[/yellow]")
+        return
+
+    # Group by job/agent_id
+    by_job = {}
+    for u in usages:
+        job_name = u.agent_id or "unknown"
+        if job_name not in by_job:
+            by_job[job_name] = []
+        by_job[job_name].append(u)
+
+    if json_out:
+        output = {}
+        for job_name, job_usages in sorted(by_job.items()):
+            bd = summarize_usage(job_usages)
+            output[job_name] = {
+                "runs": bd.calls,
+                "tokens": bd.total_tokens,
+                "cost_usd": round(bd.total_cost_usd, 6),
+            }
+        click.echo(json.dumps(output, indent=2, default=str))
+        return
+
+    console.print(Panel(
+        f"[bold]Cron Cost Analysis[/bold]\n"
+        f"Jobs: [cyan]{len(by_job)}[/cyan] | "
+        f"Total runs: [cyan]{len(usages)}[/cyan]",
+        title="agentcost — Cron"
+    ))
+
+    table = Table(title="Cost per Cron Job")
+    table.add_column("Job")
+    table.add_column("Runs", justify="right")
+    table.add_column("Tokens", justify="right")
+    table.add_column("Cost", justify="right")
+
+    total_cost = 0
+    for job_name, job_usages in sorted(by_job.items(), key=lambda x: summarize_usage(x[1]).total_cost_usd, reverse=True):
+        bd = summarize_usage(job_usages)
+        total_cost += bd.total_cost_usd
+        table.add_row(
+            job_name[:30],
+            str(bd.calls),
+            _format_tokens(bd.total_tokens),
+            _format_currency(bd.total_cost_usd),
+        )
+
+    table.add_row(
+        "[bold]Total[/bold]",
+        f"[bold]{len(usages)}[/bold]",
+        "",
+        f"[bold]{_format_currency(total_cost)}[/bold]",
+    )
+
+    console.print(table)
+
+
+@cli.command()
 @click.argument("log_path", required=False, type=click.Path(path_type=Path))
 @click.option("--agent", "-a", default=None, help="Agent type (claude, codex, opencode, hermes)")
 @click.option("--period", "-p", default="daily", type=click.Choice(["daily", "weekly", "monthly", "all"]))

@@ -4,7 +4,7 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "agentcost"
-version = "0.1.0"
+version = "0.3.0"
 description = "Token usage tracker for multi-agent AI sessions"
 readme = "README.md"
 license = {text = "MIT"}
