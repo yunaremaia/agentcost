@@ -1,0 +1,63 @@
+name: 'agentcost'
+description: 'Token usage tracker for multi-agent AI sessions — monitor cost and usage'
+author: 'Yunare Maia'
+branding:
+  icon: 'bar-chart-2'
+  color: 'blue'
+
+inputs:
+  path:
+    description: 'Repository root or log path'
+    required: false
+    default: '.'
+  period:
+    description: 'Report period (daily, weekly, monthly)'
+    required: false
+    default: 'weekly'
+  output-format:
+    description: 'Output format (cli, json, markdown)'
+    required: false
+    default: 'cli'
+  alert-threshold:
+    description: 'Alert if daily cost exceeds this USD amount'
+    required: false
+    default: '0'
+
+runs:
+  using: 'composite'
+  steps:
+    - name: Set up Python
+      uses: actions/setup-python@v6
+      with:
+        python-version: '3.11'
+
+    - name: Install agentcost
+      shell: bash
+      run: pip install agentcost
+
+    - name: Run agentcost
+      id: agentcost
+      shell: bash
+      run: |
+        set +e
+        PERIOD="${{ inputs.period }}"
+        FORMAT="${{ inputs.output-format }}"
+        THRESHOLD="${{ inputs.alert-threshold }}"
+        ROOT="${{ inputs.path }}"
+
+        if [ -n "$THRESHOLD" ] && [ "$THRESHOLD" != "0" ]; then
+          agentcost alert --path "$ROOT" --threshold "$THRESHOLD" --json-output
+          exit_code=$?
+        elif [ "$PERIOD" = "daily" ]; then
+          agentcost today --path "$ROOT" --json-output
+          exit_code=$?
+        elif [ "$PERIOD" = "monthly" ]; then
+          agentcost week --days 30 --path "$ROOT" --json-output
+          exit_code=$?
+        else
+          agentcost today --path "$ROOT" --json-output
+          exit_code=$?
+        fi
+
+        echo "exit_code=$exit_code" >> "$GITHUB_OUTPUT"
+        exit $exit_code
