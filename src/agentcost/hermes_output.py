@@ -69,11 +69,19 @@ def _parse_tool_calls_from_output(content: str) -> list[dict]:
             pass
     
     # Pattern 2: Tool call headers (terminal, execute_code, etc.)
-    tool_header_pattern = r'\[?TERMINAL\]?\s*\n```(?:bash|sh)\s*\n(.+?)\s*\n```'
+    tool_header_pattern = r'\[?TERMINAL\]?\s*```(?:bash|sh)\s*(.+?)\s*```'
     for match in re.finditer(tool_header_pattern, content, re.DOTALL):
         calls.append({
             "tool": "terminal",
             "arguments": {"command": match.group(1)[:500]}  # truncate
+        })
+    
+    # Pattern 2b: Bare ```bash blocks (without [TERMINAL] header)
+    bare_bash_pattern = r'```\s*(?:bash|sh)\s*\n(.+?)\s*\n```'
+    for match in re.finditer(bare_bash_pattern, content, re.DOTALL):
+        calls.append({
+            "tool": "terminal",
+            "arguments": {"command": match.group(1)[:500]}
         })
     
     # Pattern 3: execute_code blocks
