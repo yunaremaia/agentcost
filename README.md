@@ -35,7 +35,7 @@ agentcost analyze session.jsonl --format markdown
 
 ```
 ╭──────────────────────────────────────────────────────────────╮
-│ agentcost v0.1.0 — 42 calls                                  │
+│ agentcost v0.3.0 — 42 calls                                  │
 │ Total tokens: 156,230                                        │
 │ Input: 98,400 | Output: 57,830                              │
 │ Cache Read: 12,000 | Cache Write: 3,000                      │
