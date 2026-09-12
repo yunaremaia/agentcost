@@ -1,0 +1,8 @@
+- id: agentcost
+  name: Check AI agent token costs
+  entry: agentcost today
+  language: python
+  files: '.*'
+  additional_dependencies:
+    - "agentcost>=0.3.0"
+  args: ["--json-output"]
