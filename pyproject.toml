@@ -9,7 +9,7 @@ description = "Token usage tracker for multi-agent AI sessions"
 readme = "README.md"
 license = {text = "MIT"}
 requires-python = ">=3.10"
-authors = [{name = "Yunaremaia", email = "yunare@gmail.com"}]
+authors = [{name = "Yunare Maia", email = "yunare@gmail.com"}]
 keywords = ["ai", "agents", "tokens", "cost", "claude", "codex", "llm"]
 classifiers = [
     "Development Status :: 3 - Alpha",

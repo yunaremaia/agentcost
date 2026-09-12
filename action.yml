@@ -55,7 +55,8 @@ runs:
           agentcost week --days 30 --path "$ROOT" --json-output
           exit_code=$?
         else
-          agentcost today --path "$ROOT" --json-output
+          # weekly (default)
+          agentcost week --days 7 --path "$ROOT" --json-output
           exit_code=$?
         fi
 
