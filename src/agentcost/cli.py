@@ -108,7 +108,12 @@ def cli():
 @click.option("--agent", "-a", default=None, type=click.Choice(["claude", "codex", "opencode", "hermes"]),
               help="Filter by agent")
 def discover(log_paths, agent):
-    """Discover agent log files on this system."""
+    """Discover agent session data on this system."""
+    # Check SQLite database first
+    from agentcost.hermes_sqlite import HermesSQLiteParser
+    sqlite_parser = HermesSQLiteParser()
+    db_usages = sqlite_parser.parse()
+    
     if log_paths:
         discovery = LogDiscovery([str(p) for p in log_paths])
     else:
@@ -119,14 +124,21 @@ def discover(log_paths, agent):
     if agent:
         logs = {k: v for k, v in logs.items() if agent in k.lower()}
     
-    if not any(logs.values()):
-        console.print("[yellow]No log files found.[/yellow]")
-        return
+    if db_usages:
+        console.print(f"\n[bold green]Hermes SQLite database:[/bold green] {len(db_usages)} usage records")
+        date_range = sqlite_parser.get_date_range()
+        if date_range[0] and date_range[1]:
+            console.print(f"  Date range: {date_range[0].strftime('%Y-%m-%d')} to {date_range[1].strftime('%Y-%m-%d')}")
     
-    console.print("\n[bold green]Found log files:[/bold green]\n")
-    for agent_type, paths in sorted(logs.items()):
-        if paths:
-            console.print(f"  [cyan]{agent_type}[/cyan]: {len(paths)} files")
+    if any(logs.values()):
+        console.print("\n[bold green]Found log files:[/bold green]\n")
+        for agent_type, paths in sorted(logs.items()):
+            if paths:
+                console.print(f"  [cyan]{agent_type}[/cyan]: {len(paths)} files")
+    
+    if not db_usages and not any(logs.values()):
+        console.print("[yellow]No agent logs found.[/yellow]")
+        return
     
     console.print("\nRun 'agentcost today' to see usage summary.")
 
