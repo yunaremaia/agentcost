@@ -15,6 +15,7 @@ from agentcost.parsers import ClaudeCodeParser, CodexParser, HermesParser, OpenC
 from agentcost.hermes_sqlite import HermesSQLiteParser
 from agentcost.discovery import LogDiscovery
 from agentcost.report import ReportGenerator
+from agentcost.budget import load_budget_config, save_budget_config
 
 console = Console()
 
@@ -369,6 +370,82 @@ def cron(job, limit, json_out):
 
 
 @cli.command()
+@click.argument("action", type=click.Choice(["set", "check", "show"]))
+@click.option("--daily", type=float, default=None, help="Daily budget in USD")
+@click.option("--weekly", type=float, default=None, help="Weekly budget in USD")
+@click.option("--monthly", type=float, default=None, help="Monthly budget in USD")
+def budget(action, daily, weekly, monthly):
+    """Manage spending budgets and check thresholds."""
+    if action == "set":
+        save_budget_config(daily, weekly, monthly)
+        console.print("[green]Budget thresholds saved to ~/.agentcost/config.toml[/green]")
+        if daily:
+            console.print(f"  Daily: ${daily:.2f}")
+        if weekly:
+            console.print(f"  Weekly: ${weekly:.2f}")
+        if monthly:
+            console.print(f"  Monthly: ${monthly:.2f}")
+    elif action == "show":
+        config = load_budget_config()
+        if not config:
+            console.print("[yellow]No budget thresholds set.[/yellow]")
+            return
+        console.print("[bold]Budget Thresholds:[/bold]")
+        if "daily" in config:
+            console.print(f"  Daily: ${config['daily']:.2f}")
+        if "weekly" in config:
+            console.print(f"  Weekly: ${config['weekly']:.2f}")
+        if "monthly" in config:
+            console.print(f"  Monthly: ${config['monthly']:.2f}")
+    elif action == "check":
+        from datetime import datetime, timedelta
+        config = load_budget_config()
+        if not config:
+            console.print("[yellow]No budget thresholds set. Run 'agentcost budget set' first.[/yellow]")
+            sys.exit(1)
+        
+        usages = _parse_all_logs()
+        if not usages:
+            console.print("[yellow]No usage data found.[/yellow]")
+            sys.exit(0)
+        
+        now = datetime.now()
+        exit_code = 0
+        
+        if "daily" in config:
+            today_start = now.replace(hour=0, minute=0, second=0, microsecond=0)
+            today_usages = [u for u in usages if u.timestamp and u.timestamp >= today_start]
+            today_cost = sum(calculate_cost(u) for u in today_usages)
+            if today_cost > config["daily"]:
+                console.print(f"[red]DAILY BUDGET EXCEEDED: ${today_cost:.4f} / ${config['daily']:.2f}[/red]")
+                exit_code = 1
+            else:
+                console.print(f"[green]Daily: ${today_cost:.4f} / ${config['daily']:.2f}[/green]")
+        
+        if "weekly" in config:
+            week_start = now - timedelta(days=7)
+            week_usages = [u for u in usages if u.timestamp and u.timestamp >= week_start]
+            week_cost = sum(calculate_cost(u) for u in week_usages)
+            if week_cost > config["weekly"]:
+                console.print(f"[red]WEEKLY BUDGET EXCEEDED: ${week_cost:.4f} / ${config['weekly']:.2f}[/red]")
+                exit_code = 1
+            else:
+                console.print(f"[green]Weekly: ${week_cost:.4f} / ${config['weekly']:.2f}[/green]")
+        
+        if "monthly" in config:
+            month_start = now - timedelta(days=30)
+            month_usages = [u for u in usages if u.timestamp and u.timestamp >= month_start]
+            month_cost = sum(calculate_cost(u) for u in month_usages)
+            if month_cost > config["monthly"]:
+                console.print(f"[red]MONTHLY BUDGET EXCEEDED: ${month_cost:.4f} / ${config['monthly']:.2f}[/red]")
+                exit_code = 1
+            else:
+                console.print(f"[green]Monthly: ${month_cost:.4f} / ${config['monthly']:.2f}[/green]")
+        
+        sys.exit(exit_code)
+
+
+@cli.command()
 @click.argument("log_path", required=False, type=click.Path(path_type=Path))
 @click.option("--agent", "-a", default=None, help="Agent type (claude, codex, opencode, hermes)")
 @click.option("--period", "-p", default="daily", type=click.Choice(["daily", "weekly", "monthly", "all"]))
@@ -409,6 +486,93 @@ def analyze(log_path, agent, period, output_format):
         _output_markdown_report(report)
     else:
         _output_report_cli(report, period)
+
+
+@cli.command()
+@click.option("--path", "-p", "log_paths", multiple=True, type=click.Path(path_type=Path),
+              help="Custom log paths")
+@click.option("--period", "-pe", default="daily", type=click.Choice(["daily", "weekly", "monthly"]),
+              help="Period to compare")
+@click.option("--format", "-f", "output_format", default="cli", type=click.Choice(["cli", "json", "markdown"]))
+def compare(log_paths, period, output_format):
+    """Compare costs across agents for a given period."""
+    from datetime import datetime, timedelta
+    
+    log_paths = list(log_paths) if log_paths else None
+    usages = _parse_all_logs(log_paths)
+    
+    if not usages:
+        console.print("[yellow]No usage data found for comparison.[/yellow]")
+        return
+    
+    # Filter by period
+    if period == "daily":
+        cutoff = datetime.now().replace(hour=0, minute=0, second=0, microsecond=0)
+    elif period == "weekly":
+        cutoff = datetime.now() - timedelta(days=7)
+    else:  # monthly
+        cutoff = datetime.now() - timedelta(days=30)
+    
+    usages = [u for u in usages if u.timestamp and u.timestamp >= cutoff]
+    
+    if not usages:
+        console.print(f"[yellow]No usage data found for the last {period}.[/yellow]")
+        return
+    
+    # Group by agent
+    by_agent = {}
+    for u in usages:
+        agent_name = u.agent_id or u.model or "unknown"
+        if agent_name not in by_agent:
+            by_agent[agent_name] = []
+        by_agent[agent_name].append(u)
+    
+    # Build comparison
+    comparison = []
+    for agent_name, agent_usages in by_agent.items():
+        bd = summarize_usage(agent_usages)
+        comparison.append({
+            "agent": agent_name,
+            "calls": bd.calls,
+            "tokens": bd.total_tokens,
+            "cost_usd": round(bd.total_cost_usd, 4),
+        })
+    
+    # Sort by cost descending
+    comparison.sort(key=lambda x: x["cost_usd"], reverse=True)
+    
+    if output_format == "json":
+        click.echo(json.dumps(comparison, indent=2))
+    elif output_format == "markdown":
+        click.echo(f"# Cost Comparison — {period.title()}\n")
+        click.echo("| Agent | Calls | Tokens | Cost |")
+        click.echo("|-------|-------|--------|------|")
+        for c in comparison:
+            click.echo(f"| {c['agent']} | {c['calls']} | {c['tokens']:,} | {_format_currency(c['cost_usd'])} |")
+    else:
+        console.print(Panel(
+            f"[bold]Cost Comparison — {period.title()}[/bold]\n"
+            f"Agents: [cyan]{len(comparison)}[/cyan]",
+            title="agentcost — Compare"
+        ))
+        
+        table = Table(title="Cost by Agent")
+        table.add_column("Agent")
+        table.add_column("Calls", justify="right")
+        table.add_column("Tokens", justify="right")
+        table.add_column("Cost", justify="right")
+        
+        for c in comparison:
+            table.add_row(c["agent"], str(c["calls"]), _format_tokens(c["tokens"]), _format_currency(c["cost_usd"]))
+        
+        total_calls = sum(c["calls"] for c in comparison)
+        total_tokens = sum(c["tokens"] for c in comparison)
+        total_cost = sum(c["cost_usd"] for c in comparison)
+        table.add_row("[bold]Total[/bold]", f"[bold]{total_calls}[/bold]",
+                      f"[bold]{_format_tokens(total_tokens)}[/bold]",
+                      f"[bold]{_format_currency(total_cost)}[/bold]")
+        
+        console.print(table)
 
 
 def _output_json_breakdown(breakdown):
