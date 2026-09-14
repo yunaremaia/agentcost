@@ -46,11 +46,25 @@ agentcost discover
 agentcost analyze ~/.claude/projects/my-session.jsonl --agent claude --period daily
 ```
 
-### Output formats
+### Compare agents
 
 ```bash
-agentcost analyze session.jsonl --format json
-agentcost analyze session.jsonl --format markdown
+agentcost compare --period daily
+agentcost compare --period weekly --format json
+```
+
+### Set budgets
+
+```bash
+agentcost budget set --daily 10.0 --weekly 50.0 --monthly 200.0
+agentcost budget check
+agentcost budget show
+```
+
+Check if spending exceeds threshold today:
+
+```bash
+agentcost alert --threshold 5.0
 ```
 
 ### Example output
