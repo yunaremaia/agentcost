@@ -16,6 +16,7 @@ from agentcost.hermes_sqlite import HermesSQLiteParser
 from agentcost.discovery import LogDiscovery
 from agentcost.report import ReportGenerator
 from agentcost.budget import load_budget_config, save_budget_config
+from agentcost.sarif import budget_to_sarif, sarif_to_string
 
 console = Console()
 
@@ -274,7 +275,8 @@ def week(days, log_paths, json_out):
 @click.option("--path", "-p", "log_paths", multiple=True, type=click.Path(path_type=Path),
               help="Custom log paths")
 @click.option("--threshold", "-t", default=5.0, type=float, help="Alert threshold in USD")
-def alert(log_paths, threshold):
+@click.option("--sarif", "as_sarif", is_flag=True, help="Output SARIF 2.1.0 (for GitHub Code Scanning)")
+def alert(log_paths, threshold, as_sarif):
     """Check if spending exceeds threshold today."""
     from datetime import datetime
     
@@ -283,6 +285,16 @@ def alert(log_paths, threshold):
     usages = [u for u in usages if u.timestamp and u.timestamp >= today_start]
     
     total_cost = sum(calculate_cost(u) for u in usages)
+    
+    if as_sarif:
+        from agentcost import __version__
+        sarif_doc = budget_to_sarif(
+            {"daily": threshold},
+            {"daily": total_cost},
+            tool_version=__version__,
+        )
+        click.echo(sarif_to_string(sarif_doc))
+        sys.exit(1 if total_cost >= threshold else 0)
     
     if total_cost >= threshold:
         console.print(f"[bold red]ALERT: Today's spending {_format_currency(total_cost)} exceeds threshold {_format_currency(threshold)}[/bold red]")
@@ -374,7 +386,8 @@ def cron(job, limit, json_out):
 @click.option("--daily", type=float, default=None, help="Daily budget in USD")
 @click.option("--weekly", type=float, default=None, help="Weekly budget in USD")
 @click.option("--monthly", type=float, default=None, help="Monthly budget in USD")
-def budget(action, daily, weekly, monthly):
+@click.option("--sarif", "as_sarif", is_flag=True, help="Output SARIF 2.1.0 (for GitHub Code Scanning)")
+def budget(action, daily, weekly, monthly, as_sarif):
     """Manage spending budgets and check thresholds."""
     if action == "set":
         save_budget_config(daily, weekly, monthly)
@@ -403,45 +416,68 @@ def budget(action, daily, weekly, monthly):
         if not config:
             console.print("[yellow]No budget thresholds set. Run 'agentcost budget set' first.[/yellow]")
             sys.exit(1)
-        
+
         usages = _parse_all_logs()
         if not usages:
             console.print("[yellow]No usage data found.[/yellow]")
             sys.exit(0)
-        
+
         now = datetime.now()
         exit_code = 0
-        
+        actuals = {}
+
         if "daily" in config:
             today_start = now.replace(hour=0, minute=0, second=0, microsecond=0)
             today_usages = [u for u in usages if u.timestamp and u.timestamp >= today_start]
             today_cost = sum(calculate_cost(u) for u in today_usages)
+            actuals["daily"] = today_cost
             if today_cost > config["daily"]:
-                console.print(f"[red]DAILY BUDGET EXCEEDED: ${today_cost:.4f} / ${config['daily']:.2f}[/red]")
                 exit_code = 1
-            else:
-                console.print(f"[green]Daily: ${today_cost:.4f} / ${config['daily']:.2f}[/green]")
-        
+
         if "weekly" in config:
             week_start = now - timedelta(days=7)
             week_usages = [u for u in usages if u.timestamp and u.timestamp >= week_start]
             week_cost = sum(calculate_cost(u) for u in week_usages)
+            actuals["weekly"] = week_cost
             if week_cost > config["weekly"]:
-                console.print(f"[red]WEEKLY BUDGET EXCEEDED: ${week_cost:.4f} / ${config['weekly']:.2f}[/red]")
                 exit_code = 1
-            else:
-                console.print(f"[green]Weekly: ${week_cost:.4f} / ${config['weekly']:.2f}[/green]")
-        
+
         if "monthly" in config:
             month_start = now - timedelta(days=30)
             month_usages = [u for u in usages if u.timestamp and u.timestamp >= month_start]
             month_cost = sum(calculate_cost(u) for u in month_usages)
+            actuals["monthly"] = month_cost
+            if month_cost > config["monthly"]:
+                exit_code = 1
+
+        if as_sarif:
+            from agentcost import __version__
+            sarif_doc = budget_to_sarif(config, actuals, tool_version=__version__)
+            click.echo(sarif_to_string(sarif_doc))
+            sys.exit(exit_code)
+
+        # CLI output
+        if "daily" in config:
+            today_cost = actuals["daily"]
+            if today_cost > config["daily"]:
+                console.print(f"[red]DAILY BUDGET EXCEEDED: ${today_cost:.4f} / ${config['daily']:.2f}[/red]")
+            else:
+                console.print(f"[green]Daily: ${today_cost:.4f} / ${config['daily']:.2f}[/green]")
+
+        if "weekly" in config:
+            week_cost = actuals["weekly"]
+            if week_cost > config["weekly"]:
+                console.print(f"[red]WEEKLY BUDGET EXCEEDED: ${week_cost:.4f} / ${config['weekly']:.2f}[/red]")
+            else:
+                console.print(f"[green]Weekly: ${week_cost:.4f} / ${config['weekly']:.2f}[/green]")
+
+        if "monthly" in config:
+            month_cost = actuals["monthly"]
             if month_cost > config["monthly"]:
                 console.print(f"[red]MONTHLY BUDGET EXCEEDED: ${month_cost:.4f} / ${config['monthly']:.2f}[/red]")
-                exit_code = 1
             else:
                 console.print(f"[green]Monthly: ${month_cost:.4f} / ${config['monthly']:.2f}[/green]")
-        
+
         sys.exit(exit_code)
 
 

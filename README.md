@@ -48,8 +48,32 @@ agentcost analyze session.jsonl --format markdown
 - **Multi-agent**: Claude Code, Codex CLI, OpenCode, Hermes
 - **Zero config**: Discovers logs automatically
 - **Rich output**: CLI tables, JSON, Markdown
+- **SARIF 2.1.0**: GitHub Code Scanning integration for budget alerts
 - **Cost-aware**: Cache read pricing (Anthropic: 90% discount)
 - **Projections**: Monthly cost estimates based on recent usage
+
+## SARIF Output (GitHub Code Scanning)
+
+Generate SARIF 2.1.0 output for GitHub Code Scanning integration:
+
+```bash
+agentcost budget check --daily 10 --weekly 50 --monthly 200 --sarif
+agentcost alert --threshold 5.0 --sarif
+```
+
+GitHub Actions workflow:
+
+```yaml
+- name: Check budget
+  run: agentcost budget check --daily 10 --sarif > agentcost.sarif
+
+- name: Upload SARIF
+  uses: github/codeql-action/upload-sarif@v3
+  with:
+    sarif_file: agentcost.sarif
+```
+
+SARIF output includes one rule per budget period (daily/weekly/monthly). When thresholds are exceeded, results are emitted at `error` level.
 
 ## Supported log formats
 
