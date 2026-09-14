@@ -47,6 +47,42 @@ class TestCostCalculation:
         # Should use default pricing
         assert cost > 0
 
+    def test_calculate_cost_grok2(self):
+        usage = TokenUsage(model="grok-2", input_tokens=10000, output_tokens=5000)
+        cost = calculate_cost(usage)
+        expected = (10000 / 1e6 * 2.0) + (5000 / 1e6 * 10.0)
+        assert abs(cost - expected) < 0.001
+
+    def test_calculate_cost_qwen_max(self):
+        usage = TokenUsage(model="qwen-max", input_tokens=10000, output_tokens=5000)
+        cost = calculate_cost(usage)
+        expected = (10000 / 1e6 * 2.0) + (5000 / 1e6 * 6.0)
+        assert abs(cost - expected) < 0.001
+
+    def test_calculate_cost_kimi_latest(self):
+        usage = TokenUsage(model="kimi-latest", input_tokens=10000, output_tokens=5000)
+        cost = calculate_cost(usage)
+        expected = (10000 / 1e6 * 0.21) + (5000 / 1e6 * 2.52)
+        assert abs(cost - expected) < 0.001
+
+    def test_calculate_cost_llama_31_405b(self):
+        usage = TokenUsage(model="llama-3.1-405b", input_tokens=10000, output_tokens=5000)
+        cost = calculate_cost(usage)
+        expected = (10000 / 1e6 * 3.0) + (5000 / 1e6 * 15.0)
+        assert abs(cost - expected) < 0.001
+
+    def test_calculate_cost_claude_3_7_sonnet(self):
+        usage = TokenUsage(model="claude-3-7-sonnet", input_tokens=10000, output_tokens=5000)
+        cost = calculate_cost(usage)
+        expected = (10000 / 1e6 * 3.0) + (5000 / 1e6 * 15.0)
+        assert abs(cost - expected) < 0.001
+
+    def test_calculate_cost_deepseek_r1(self):
+        usage = TokenUsage(model="deepseek-r1", input_tokens=10000, output_tokens=5000)
+        cost = calculate_cost(usage)
+        expected = (10000 / 1e6 * 0.55) + (5000 / 1e6 * 2.19)
+        assert abs(cost - expected) < 0.001
+
     def test_summarize_usage(self):
         usages = [
             TokenUsage("claude-3-5-sonnet", 1000, 500),
