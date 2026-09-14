@@ -55,6 +55,16 @@ MODEL_PRICING = {
     "gemini-2.5-pro": {"input": 1.25, "output": 5.0, "cache_read": 0.31, "cache_write": 1.25},
     "gemini-2.0-flash": {"input": 0.075, "output": 0.3, "cache_read": 0.019, "cache_write": 0.075},
     "deepseek-v3": {"input": 0.27, "output": 1.1, "cache_read": 0.07, "cache_write": 0.27},
+    "deepseek-r1": {"input": 0.55, "output": 2.19, "cache_read": 0.14, "cache_write": 0.55},
+    "grok-2": {"input": 2.0, "output": 10.0, "cache_read": 0.5, "cache_write": 2.5},
+    "grok-2-vision": {"input": 2.0, "output": 10.0, "cache_read": 0.5, "cache_write": 2.5},
+    "qwen-max": {"input": 2.0, "output": 6.0, "cache_read": 0.5, "cache_write": 1.5},
+    "qwen-plus": {"input": 0.8, "output": 2.0, "cache_read": 0.2, "cache_write": 0.5},
+    "kimi-latest": {"input": 0.21, "output": 2.52, "cache_read": 0.05, "cache_write": 0.21},
+    "llama-3.1-405b": {"input": 3.0, "output": 15.0, "cache_read": 0.3, "cache_write": 3.0},
+    "llama-3.1-70b": {"input": 0.9, "output": 0.9, "cache_read": 0.09, "cache_write": 0.09},
+    "llama-3.1-8b": {"input": 0.18, "output": 0.18, "cache_read": 0.02, "cache_write": 0.02},
+    "claude-3-7-sonnet": {"input": 3.0, "output": 15.0, "cache_read": 0.3, "cache_write": 3.75},
 }
 
 
