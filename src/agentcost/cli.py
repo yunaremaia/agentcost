@@ -12,6 +12,7 @@ from rich.panel import Panel
 
 from agentcost.cost import TokenUsage, CostBreakdown, calculate_cost, summarize_usage
 from agentcost.parsers import ClaudeCodeParser, CodexParser, HermesParser, OpenCodeParser
+from agentcost.cursor_parser import CursorParser
 from agentcost.hermes_sqlite import HermesSQLiteParser
 from agentcost.discovery import LogDiscovery
 from agentcost.report import ReportGenerator
@@ -75,6 +76,8 @@ def _parse_file(path: Path) -> List[TokenUsage]:
     path_lower = str(path).lower()
     if "claude" in path_lower:
         parser = ClaudeCodeParser()
+    elif "cursor" in path_lower:
+        parser = CursorParser()
     elif "codex" in path_lower:
         parser = CodexParser()
     elif "opencode" in path_lower:
@@ -89,6 +92,8 @@ def _get_parser(agent_type: str):
     agent_type = agent_type.lower()
     if "claude" in agent_type:
         return ClaudeCodeParser()
+    elif "cursor" in agent_type:
+        return CursorParser()
     elif "codex" in agent_type:
         return CodexParser()
     elif "opencode" in agent_type:

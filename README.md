@@ -81,7 +81,7 @@ agentcost alert --threshold 5.0
 
 ## Features
 
-- **Multi-agent**: Claude Code, Codex CLI, OpenCode, Hermes
+- **Multi-agent**: Claude Code, Codex CLI, OpenCode, Hermes, Cursor
 - **Zero config**: Discovers logs automatically
 - **Rich output**: CLI tables, JSON, Markdown
 - **SARIF 2.1.0**: GitHub Code Scanning integration for budget alerts
@@ -119,6 +119,7 @@ SARIF output includes one rule per budget period (daily/weekly/monthly). When th
 | Codex CLI   | JSONL               | ✅     |
 | OpenCode    | JSONL               | ✅     |
 | Hermes      | JSON/JSONL          | ✅     |
+| Cursor      | JSONL               | ✅     |
 
 ## Model pricing
 

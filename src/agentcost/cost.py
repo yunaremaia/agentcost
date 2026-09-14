@@ -50,6 +50,11 @@ MODEL_PRICING = {
     "gpt-3.5-turbo": {"input": 0.5, "output": 1.5, "cache_read": 0.25, "cache_write": 0.75},
     "gemini-1.5-pro": {"input": 1.25, "output": 5.0, "cache_read": 0.31, "cache_write": 1.25},
     "gemini-1.5-flash": {"input": 0.075, "output": 0.3, "cache_read": 0.019, "cache_write": 0.075},
+    "claude-opus-4": {"input": 15.0, "output": 75.0, "cache_read": 1.5, "cache_write": 18.75},
+    "claude-sonnet-4": {"input": 3.0, "output": 15.0, "cache_read": 0.3, "cache_write": 3.75},
+    "gemini-2.5-pro": {"input": 1.25, "output": 5.0, "cache_read": 0.31, "cache_write": 1.25},
+    "gemini-2.0-flash": {"input": 0.075, "output": 0.3, "cache_read": 0.019, "cache_write": 0.075},
+    "deepseek-v3": {"input": 0.27, "output": 1.1, "cache_read": 0.07, "cache_write": 0.27},
 }
 
 
