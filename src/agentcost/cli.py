@@ -114,7 +114,8 @@ def cli():
               help="Log file paths or directories")
 @click.option("--agent", "-a", default=None, type=click.Choice(["claude", "codex", "opencode", "hermes"]),
               help="Filter by agent")
-def discover(log_paths, agent):
+@click.option("--quiet", "-q", is_flag=True, help="Only list log paths, one per line")
+def discover(log_paths, agent, quiet=False):
     """Discover agent session data on this system."""
     # Check SQLite database first
     from agentcost.hermes_sqlite import HermesSQLiteParser
@@ -131,6 +132,12 @@ def discover(log_paths, agent):
     if agent:
         logs = {k: v for k, v in logs.items() if agent in k.lower()}
     
+    if quiet:
+        for agent_type, paths in sorted(logs.items()):
+            for p in paths:
+                click.echo(str(p))
+        return
+
     if db_usages:
         console.print(f"\n[bold green]Hermes SQLite database:[/bold green] {len(db_usages)} usage records")
         date_range = sqlite_parser.get_date_range()
@@ -155,7 +162,8 @@ def discover(log_paths, agent):
               help="Custom log paths")
 @click.option("--date", default=None, help="Date to show (YYYY-MM-DD, default: today)")
 @click.option("--json-output", "json_out", is_flag=True, help="Output as JSON")
-def today(log_paths, date, json_out):
+@click.option("--quiet", "-q", is_flag=True, help="Suppress rich formatting and output JSON only")
+def today(log_paths, date, json_out, quiet=False):
     """Show today's token usage (or a specific date with --date)."""
     usages = _parse_all_logs(list(log_paths) if log_paths else None)
     
@@ -170,12 +178,13 @@ def today(log_paths, date, json_out):
         usages = [u for u in usages if u.timestamp and u.timestamp >= today_start]
     
     if not usages:
-        console.print("[yellow]No agent activity found today.[/yellow]")
+        if not quiet:
+            console.print("[yellow]No agent activity found today.[/yellow]")
         return
     
     breakdown = summarize_usage(usages)
     
-    if json_out:
+    if json_out or quiet:
         _output_json_breakdown(breakdown)
         return
     
@@ -215,7 +224,8 @@ def today(log_paths, date, json_out):
 @click.option("--path", "-p", "log_paths", multiple=True, type=click.Path(path_type=Path),
               help="Custom log paths")
 @click.option("--json-output", "json_out", is_flag=True, help="Output as JSON")
-def week(days, date, log_paths, json_out):
+@click.option("--quiet", "-q", is_flag=True, help="Suppress rich formatting and output JSON only")
+def week(days, date, log_paths, json_out, quiet=False):
     """Show usage for the last N days ending on a specific date (default: today)."""
     from datetime import datetime, timedelta
     
@@ -228,7 +238,8 @@ def week(days, date, log_paths, json_out):
     usages = [u for u in usages if u.timestamp and u.timestamp >= cutoff]
     
     if not usages:
-        console.print(f"[yellow]No agent activity found in the last {days} days.[/yellow]")
+        if not quiet:
+            console.print(f"[yellow]No agent activity found in the last {days} days.[/yellow]")
         return
     
     # Group by day
@@ -239,7 +250,7 @@ def week(days, date, log_paths, json_out):
             by_day[day_key] = []
         by_day[day_key].append(u)
     
-    if json_out:
+    if json_out or quiet:
         output = {}
         for day, day_usages in sorted(by_day.items()):
             bd = summarize_usage(day_usages)
@@ -292,7 +303,8 @@ def week(days, date, log_paths, json_out):
               help="Custom log paths")
 @click.option("--threshold", "-t", default=5.0, type=float, help="Alert threshold in USD")
 @click.option("--sarif", "as_sarif", is_flag=True, help="Output SARIF 2.1.0 (for GitHub Code Scanning)")
-def alert(log_paths, threshold, as_sarif):
+@click.option("--quiet", "-q", is_flag=True, help="Suppress console messages (exit code only)")
+def alert(log_paths, threshold, as_sarif, quiet=False):
     """Check if spending exceeds threshold today."""
     from datetime import datetime
     
@@ -313,12 +325,14 @@ def alert(log_paths, threshold, as_sarif):
         sys.exit(1 if total_cost >= threshold else 0)
     
     if total_cost >= threshold:
-        console.print(f"[bold red]ALERT: Today's spending {_format_currency(total_cost)} exceeds threshold {_format_currency(threshold)}[/bold red]")
+        if not quiet:
+            console.print(f"[bold red]ALERT: Today's spending {_format_currency(total_cost)} exceeds threshold {_format_currency(threshold)}[/bold red]")
         sys.exit(1)
     else:
-        remaining = threshold - total_cost
-        console.print(f"[green]Within budget: {_format_currency(total_cost)} / {_format_currency(threshold)}[/green]")
-        console.print(f"[dim]Remaining: {_format_currency(remaining)}[/dim]")
+        if not quiet:
+            remaining = threshold - total_cost
+            console.print(f"[green]Within budget: {_format_currency(total_cost)} / {_format_currency(threshold)}[/green]")
+            console.print(f"[dim]Remaining: {_format_currency(remaining)}[/dim]")
         sys.exit(0)
 
 
@@ -326,7 +340,8 @@ def alert(log_paths, threshold, as_sarif):
 @click.option("--job", "-j", default=None, help="Specific job ID to analyze")
 @click.option("--limit", "-l", default=5, help="Max output files per job")
 @click.option("--json-output", "json_out", is_flag=True, help="Output as JSON")
-def cron(job, limit, json_out):
+@click.option("--quiet", "-q", is_flag=True, help="Suppress formatted output and only output JSON")
+def cron(job, limit, json_out, quiet=False):
     """Analyze Hermes cron outputs and estimate cost per task."""
     from agentcost.hermes_output import HermesOutputParser
 
@@ -340,7 +355,8 @@ def cron(job, limit, json_out):
             usages.extend(parser.parse_job_outputs(jid, limit=limit))
 
     if not usages:
-        console.print("[yellow]No cron outputs found.[/yellow]")
+        if not quiet:
+            console.print("[yellow]No cron outputs found.[/yellow]")
         return
 
     # Group by job/agent_id
@@ -351,7 +367,7 @@ def cron(job, limit, json_out):
             by_job[job_name] = []
         by_job[job_name].append(u)
 
-    if json_out:
+    if json_out or quiet:
         output = {}
         for job_name, job_usages in sorted(by_job.items()):
             bd = summarize_usage(job_usages)
@@ -399,7 +415,8 @@ def cron(job, limit, json_out):
 
 @cli.command()
 @click.option("--project", is_flag=True, help="Create project-local config (.agentcost.toml) instead of global")
-def init(project):
+@click.option("--quiet", "-q", is_flag=True, help="Suppress verbose output")
+def init(project, quiet=False):
     """Initialize agentcost config with guided budget setup."""
     console.print("[bold]agentcost — Initialization[/bold]\n")
 
@@ -431,11 +448,13 @@ def init(project):
 @click.option("--weekly", type=float, default=None, help="Weekly budget in USD")
 @click.option("--monthly", type=float, default=None, help="Monthly budget in USD")
 @click.option("--sarif", "as_sarif", is_flag=True, help="Output SARIF 2.1.0 (for GitHub Code Scanning)")
-def budget(action, daily, weekly, monthly, as_sarif):
+@click.option("--quiet", "-q", is_flag=True, help="Suppress console messages (exit code only)")
+def budget(action, daily, weekly, monthly, as_sarif, quiet=False):
     """Manage spending budgets and check thresholds."""
     if action == "set":
         save_budget_config(daily, weekly, monthly)
-        console.print("[green]Budget thresholds saved to ~/.agentcost/config.toml[/green]")
+        if not quiet:
+            console.print("[green]Budget thresholds saved to ~/.agentcost/config.toml[/green]")
         if daily:
             console.print(f"  Daily: ${daily:.2f}")
         if weekly:
@@ -500,6 +519,9 @@ def budget(action, daily, weekly, monthly, as_sarif):
             click.echo(sarif_to_string(sarif_doc))
             sys.exit(exit_code)
 
+        if quiet:
+            sys.exit(exit_code)
+
         # CLI output
         if "daily" in config:
             today_cost = actuals["daily"]
@@ -531,7 +553,8 @@ def budget(action, daily, weekly, monthly, as_sarif):
 @click.option("--period", "-p", default="daily", type=click.Choice(["daily", "weekly", "monthly", "all"]))
 @click.option("--date", default=None, help="Date to analyze (YYYY-MM-DD, default: today)")
 @click.option("--format", "-f", "output_format", default="cli", type=click.Choice(["cli", "json", "markdown"]))
-def analyze(log_path, agent, period, date, output_format):
+@click.option("--quiet", "-q", is_flag=True, help="Quiet output (JSON format)")
+def analyze(log_path, agent, period, date, output_format, quiet=False):
     """Analyze a specific log file or all discovered logs."""
     if log_path:
         if agent == "claude":
@@ -547,8 +570,12 @@ def analyze(log_path, agent, period, date, output_format):
     else:
         usages = _parse_all_logs()
     
+    if quiet and output_format == "cli":
+        output_format = "json"
+
     if not usages:
-        console.print("[yellow]No usage data found.[/yellow]")
+        if not quiet:
+            console.print("[yellow]No usage data found.[/yellow]")
         return
     
     from datetime import datetime
@@ -578,7 +605,8 @@ def analyze(log_path, agent, period, date, output_format):
 @click.option("--period", "-pe", default="daily", type=click.Choice(["daily", "weekly", "monthly"]),
               help="Period to compare")
 @click.option("--format", "-f", "output_format", default="cli", type=click.Choice(["cli", "json", "markdown"]))
-def compare(log_paths, period, output_format):
+@click.option("--quiet", "-q", is_flag=True, help="Quiet output (JSON format)")
+def compare(log_paths, period, output_format, quiet=False):
     """Compare costs across agents for a given period."""
     from datetime import datetime, timedelta
     
@@ -625,7 +653,7 @@ def compare(log_paths, period, output_format):
     # Sort by cost descending
     comparison.sort(key=lambda x: x["cost_usd"], reverse=True)
     
-    if output_format == "json":
+    if quiet or output_format == "json":
         click.echo(json.dumps(comparison, indent=2))
     elif output_format == "markdown":
         click.echo(f"# Cost Comparison — {period.title()}\n")
