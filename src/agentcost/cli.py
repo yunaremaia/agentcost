@@ -153,15 +153,21 @@ def discover(log_paths, agent):
 @cli.command()
 @click.option("--path", "-p", "log_paths", multiple=True, type=click.Path(path_type=Path),
               help="Custom log paths")
+@click.option("--date", default=None, help="Date to show (YYYY-MM-DD, default: today)")
 @click.option("--json-output", "json_out", is_flag=True, help="Output as JSON")
-def today(log_paths, json_out):
-    """Show today's token usage."""
+def today(log_paths, date, json_out):
+    """Show today's token usage (or a specific date with --date)."""
     usages = _parse_all_logs(list(log_paths) if log_paths else None)
     
-    # Filter to today
     from datetime import datetime, timedelta
-    today_start = datetime.now().replace(hour=0, minute=0, second=0, microsecond=0)
-    usages = [u for u in usages if u.timestamp and u.timestamp >= today_start]
+    if date:
+        target_date = datetime.strptime(date, "%Y-%m-%d")
+        today_start = target_date.replace(hour=0, minute=0, second=0, microsecond=0)
+        today_end = today_start + timedelta(days=1)
+        usages = [u for u in usages if u.timestamp and today_start <= u.timestamp < today_end]
+    else:
+        today_start = datetime.now().replace(hour=0, minute=0, second=0, microsecond=0)
+        usages = [u for u in usages if u.timestamp and u.timestamp >= today_start]
     
     if not usages:
         console.print("[yellow]No agent activity found today.[/yellow]")
@@ -205,15 +211,20 @@ def today(log_paths, json_out):
 
 @cli.command()
 @click.option("--days", "-d", default=7, help="Number of days")
+@click.option("--date", default=None, help="End date (YYYY-MM-DD, default: today)")
 @click.option("--path", "-p", "log_paths", multiple=True, type=click.Path(path_type=Path),
               help="Custom log paths")
 @click.option("--json-output", "json_out", is_flag=True, help="Output as JSON")
-def week(days, log_paths, json_out):
-    """Show usage for the last N days."""
+def week(days, date, log_paths, json_out):
+    """Show usage for the last N days ending on a specific date (default: today)."""
     from datetime import datetime, timedelta
     
     usages = _parse_all_logs(list(log_paths) if log_paths else None)
-    cutoff = datetime.now() - timedelta(days=days)
+    if date:
+        end_date = datetime.strptime(date, "%Y-%m-%d") + timedelta(days=1)
+        cutoff = end_date - timedelta(days=days)
+    else:
+        cutoff = datetime.now() - timedelta(days=days)
     usages = [u for u in usages if u.timestamp and u.timestamp >= cutoff]
     
     if not usages:
@@ -518,8 +529,9 @@ def budget(action, daily, weekly, monthly, as_sarif):
 @click.argument("log_path", required=False, type=click.Path(path_type=Path))
 @click.option("--agent", "-a", default=None, help="Agent type (claude, codex, opencode, hermes)")
 @click.option("--period", "-p", default="daily", type=click.Choice(["daily", "weekly", "monthly", "all"]))
+@click.option("--date", default=None, help="Date to analyze (YYYY-MM-DD, default: today)")
 @click.option("--format", "-f", "output_format", default="cli", type=click.Choice(["cli", "json", "markdown"]))
-def analyze(log_path, agent, period, output_format):
+def analyze(log_path, agent, period, date, output_format):
     """Analyze a specific log file or all discovered logs."""
     if log_path:
         if agent == "claude":
@@ -539,13 +551,16 @@ def analyze(log_path, agent, period, output_format):
         console.print("[yellow]No usage data found.[/yellow]")
         return
     
+    from datetime import datetime
+    target_date = datetime.strptime(date, "%Y-%m-%d") if date else None
+    
     gen = ReportGenerator()
     if period == "daily":
-        report = gen.daily_summary(usages)
+        report = gen.daily_summary(usages, date=target_date)
     elif period == "weekly":
-        report = gen.weekly_summary(usages)
+        report = gen.weekly_summary(usages, date=target_date)
     elif period == "monthly":
-        report = gen.monthly_summary(usages)
+        report = gen.monthly_summary(usages, date=target_date)
     else:
         report = gen._build_summary(usages, "All Time")
     

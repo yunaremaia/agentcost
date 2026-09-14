@@ -1,6 +1,6 @@
 """Report generation for cost analysis."""
 
-from typing import List, Dict
+from typing import List, Dict, Optional
 from datetime import datetime, timedelta
 
 from agentcost.cost import TokenUsage, CostBreakdown, calculate_cost, summarize_usage
@@ -9,7 +9,7 @@ from agentcost.cost import TokenUsage, CostBreakdown, calculate_cost, summarize_
 class ReportGenerator:
     """Generate cost reports from token usage data."""
 
-    def daily_summary(self, usages: List[TokenUsage], date: datetime = None) -> Dict:
+    def daily_summary(self, usages: List[TokenUsage], date: Optional[datetime] = None) -> Dict:
         """Generate summary for a specific date."""
         if date is None:
             date = datetime.now()
@@ -24,7 +24,7 @@ class ReportGenerator:
         
         return self._build_summary(day_usages, f"Daily ({date.strftime('%Y-%m-%d')})")
 
-    def weekly_summary(self, usages: List[TokenUsage], date: datetime = None) -> Dict:
+    def weekly_summary(self, usages: List[TokenUsage], date: Optional[datetime] = None) -> Dict:
         """Generate summary for the week containing date."""
         if date is None:
             date = datetime.now()
@@ -40,7 +40,7 @@ class ReportGenerator:
         
         return self._build_summary(week_usages, f"Weekly ({week_start.strftime('%Y-%m-%d')} to {(week_end - timedelta(days=1)).strftime('%Y-%m-%d')})")
 
-    def monthly_summary(self, usages: List[TokenUsage], date: datetime = None) -> Dict:
+    def monthly_summary(self, usages: List[TokenUsage], date: Optional[datetime] = None) -> Dict:
         """Generate summary for the month containing date."""
         if date is None:
             date = datetime.now()
