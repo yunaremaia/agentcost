@@ -10,6 +10,28 @@
 pip install agentcost
 ```
 
+## Quick Start
+
+```bash
+agentcost init                  # guided setup (global config)
+agentcost init --project        # guided setup (project-local .agentcost.toml)
+```
+
+On first run, `init` prompts for budget thresholds and creates the config file:
+
+```
+agentcost — Initialization
+
+Daily budget (USD) [10.00]: 5.00
+Weekly budget (USD) [50.00]: 25.00
+Monthly budget (USD) [200.00]: 100.00
+
+Config saved to /home/user/.agentcost/config.toml
+  Daily: $5.00
+  Weekly: $25.00
+  Monthly: $100.00
+```
+
 ## Usage
 
 ### Discover logs automatically

@@ -382,6 +382,34 @@ def cron(job, limit, json_out):
 
 
 @cli.command()
+@click.option("--project", is_flag=True, help="Create project-local config (.agentcost.toml) instead of global")
+def init(project):
+    """Initialize agentcost config with guided budget setup."""
+    console.print("[bold]agentcost — Initialization[/bold]\n")
+
+    from rich.prompt import Prompt, FloatPrompt
+    from rich.text import Text
+
+    daily_str = Prompt.ask("Daily budget (USD)", default="10.00")
+    weekly_str = Prompt.ask("Weekly budget (USD)", default="50.00")
+    monthly_str = Prompt.ask("Monthly budget (USD)", default="200.00")
+
+    try:
+        daily = float(daily_str)
+        weekly = float(weekly_str)
+        monthly = float(monthly_str)
+    except ValueError:
+        console.print("[red]Invalid number format[/red]")
+        sys.exit(1)
+
+    target = save_budget_config(daily, weekly, monthly, project=project)
+    console.print(f"[green]Config saved to {target}[/green]")
+    console.print(f"  Daily: ${daily:.2f}")
+    console.print(f"  Weekly: ${weekly:.2f}")
+    console.print(f"  Monthly: ${monthly:.2f}")
+
+
+@cli.command()
 @click.argument("action", type=click.Choice(["set", "check", "show"]))
 @click.option("--daily", type=float, default=None, help="Daily budget in USD")
 @click.option("--weekly", type=float, default=None, help="Weekly budget in USD")
