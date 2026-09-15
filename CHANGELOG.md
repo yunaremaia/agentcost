@@ -1,15 +1,14 @@
 # Changelog
 
-All notable changes to agentcost will be documented in this file.
+All notable changes to this project will be documented in this file.
 
-## [0.3.0] - 2026-09-11
+The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
+and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
+
+## [Unreleased]
 
 ### Added
-- Initial release: parse Claude Code, Codex, OpenCode, Hermes logs
-- Cache-aware pricing with prompt caching discount
-- Daily/weekly/monthly reports + cost projection
-- CLI + JSON + Markdown output formats
-- GitHub Actions composite action for CI integration
+- Python 3.10 compatibility: `tomllib` fallback via `tomli` for `src/agentcost/budget.py` (#26)
 
 ### Fixed
-- Fixed author name casing in pyproject.toml (`Yunaremaia` → `Yunare Maia`)
+- CI failure on Python 3.10 due to missing `tomllib` stdlib module (#26)
