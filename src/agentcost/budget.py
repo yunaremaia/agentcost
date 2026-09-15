@@ -2,9 +2,13 @@
 from __future__ import annotations
 
 import os
-import tomllib
 from pathlib import Path
 from typing import Optional
+
+try:
+    import tomllib
+except ModuleNotFoundError:
+    import tomli as tomllib  # type: ignore[no-redef,no-unresolved-imports]
 
 CONFIG_DIR = Path.home() / ".agentcost"
 CONFIG_FILE = CONFIG_DIR / "config.toml"
