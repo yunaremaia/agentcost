@@ -46,12 +46,29 @@ agentcost discover
 agentcost analyze ~/.claude/projects/my-session.jsonl --agent claude --period daily
 ```
 
+## Budget & Compare
+
+### Spending budgets
+
+```bash
+agentcost budget set --daily 10 --weekly 50 --monthly 200
+agentcost budget show
+agentcost budget check
+agentcost budget check --quiet
+agentcost budget check --sarif
+```
+
+`budget check` exits with `0` when configured thresholds are satisfied and `1` when a threshold is exceeded, no budget is configured, or another check failure occurs. `--quiet` is useful for scripts, while `--sarif` emits SARIF 2.1.0 for CI integrations.
+
 ### Compare agents
 
 ```bash
-agentcost compare --period daily
-agentcost compare --period weekly --format json
+agentcost compare --period daily                  # terminal table
+agentcost compare --period weekly --format json   # structured output
+agentcost compare --period monthly --format markdown > report.md
 ```
+
+Comparison periods are `daily`, `weekly`, and `monthly`. Output formats are `cli` (default), `json`, and `markdown`; `--quiet` selects JSON output for scripting.
 
 ### Set budgets
 
