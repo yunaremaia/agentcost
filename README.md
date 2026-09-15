@@ -40,6 +40,20 @@ Config saved to /home/user/.agentcost/config.toml
 agentcost discover
 ```
 
+### Everyday usage
+
+```bash
+agentcost today                              # today's usage summary
+agentcost today --date 2026-09-14            # a specific day
+agentcost week                               # last 7 days
+agentcost week --days 30                     # last 30 days
+agentcost cron                               # analyze Hermes cron costs
+agentcost cron --job <job-id>                # a specific Hermes job
+agentcost cron --json-output                 # machine-readable cron summary
+```
+
+`today` and `week` summarize calls, tokens, and estimated cost from discovered logs. `cron` groups Hermes cron output by job and estimates the cost of its recent runs.
+
 ### Analyze a log file
 
 ```bash
