@@ -12,6 +12,7 @@ DEFAULT_PATHS = [
     "~/.hermes/logs",
     "~/.hermes/cron/output",
     "~/.cursor/sessions",
+    ".cursor/sessions",
 ]
 
 
@@ -37,6 +38,7 @@ class LogDiscovery:
         for base_path in self.paths:
             if not base_path.exists():
                 continue
+            path_parts = {part.lower() for part in base_path.parts}
             base_name = base_path.name.lower()
             
             if "claude" in base_name:
@@ -47,7 +49,7 @@ class LogDiscovery:
                 logs["opencode"].extend(self._find_jsonl(base_path))
             elif "hermes" in base_name:
                 logs["hermes"].extend(self._find_logs(base_path))
-            elif "cursor" in base_name:
+            elif "cursor" in base_name or ".cursor" in path_parts:
                 logs["cursor"].extend(self._find_jsonl(base_path))
         
         return logs
