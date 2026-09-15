@@ -38,7 +38,10 @@ Config saved to /home/user/.agentcost/config.toml
 
 ```bash
 agentcost discover
+agentcost discover --agent cursor
 ```
+
+Supported discovery filters: `claude`, `codex`, `opencode`, `hermes`, and `cursor`.
 
 ### Analyze a log file
 
