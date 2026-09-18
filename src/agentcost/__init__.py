@@ -5,6 +5,7 @@ from agentcost.parsers import ClaudeCodeParser, CodexParser, HermesParser, OpenC
 from agentcost.hermes_output import HermesOutputParser
 from agentcost.discovery import LogDiscovery
 from agentcost.report import ReportGenerator
+from agentcost.persistence import CostPersistence
 
 __version__ = "0.3.0"
 
@@ -20,4 +21,5 @@ __all__ = [
     "HermesOutputParser",
     "LogDiscovery",
     "ReportGenerator",
+    "CostPersistence",
 ]
