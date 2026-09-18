@@ -125,6 +125,10 @@ SARIF output includes one rule per budget period (daily/weekly/monthly). When th
 
 Built-in pricing for Claude 3.x, GPT-4o, Gemini 1.5. Auto-fallback for unknown models.
 
+## Security
+
+Please report security vulnerabilities privately. See [SECURITY.md](SECURITY.md) for supported versions and reporting instructions.
+
 ## License
 
 MIT
