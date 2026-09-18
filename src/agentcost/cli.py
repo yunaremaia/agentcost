@@ -16,7 +16,7 @@ from agentcost.cursor_parser import CursorParser
 from agentcost.hermes_sqlite import HermesSQLiteParser
 from agentcost.discovery import LogDiscovery
 from agentcost.report import ReportGenerator
-from agentcost.budget import load_budget_config, save_budget_config
+from agentcost.budget import load_budget_config, save_budget_config, validate_threshold
 from agentcost.sarif import budget_to_sarif, sarif_to_string
 
 console = Console()
@@ -313,6 +313,7 @@ def week(days, date, log_paths, json_out, quiet=False):
 @click.option("--quiet", "-q", is_flag=True, help="Suppress console messages (exit code only)")
 def alert(log_paths, threshold, as_sarif, quiet=False):
     """Check if spending exceeds threshold today."""
+    validate_threshold(threshold, "--threshold")
     from datetime import datetime
     
     usages = _parse_all_logs(list(log_paths) if log_paths else None)
@@ -486,6 +487,10 @@ def budget(action, daily, weekly, monthly, as_sarif, quiet=False):
         if not config:
             console.print("[yellow]No budget thresholds set. Run 'agentcost budget set' first.[/yellow]")
             sys.exit(1)
+
+        for name in ("daily", "weekly", "monthly"):
+            if name in config:
+                validate_threshold(config[name], f"{name} budget")
 
         usages = _parse_all_logs()
         if not usages:
