@@ -98,14 +98,17 @@ def _parse_tool_calls_from_output(content: str) -> list[dict]:
 class HermesOutputParser:
     """Parse Hermes cron output files to extract token usage estimates."""
     
-    def __init__(self, cron_output_dir: Path = Path("/root/.hermes/cron/output")):
+    def __init__(self, cron_output_dir: Path = Path.home() / ".hermes" / "cron" / "output"):
         self.cron_output_dir = cron_output_dir
     
     def list_jobs(self) -> list[str]:
         """List all job IDs that have output files."""
         if not self.cron_output_dir.exists():
             return []
-        return [d.name for d in self.cron_output_dir.iterdir() if d.is_dir()]
+        try:
+            return [d.name for d in self.cron_output_dir.iterdir() if d.is_dir()]
+        except PermissionError:
+            return []
     
     def parse_job_outputs(self, job_id: str, limit: int = 10) -> list[TokenUsage]:
         """Parse output files for a specific job, return TokenUsage estimates."""
@@ -113,7 +116,10 @@ class HermesOutputParser:
         if not job_dir.exists():
             return []
         
-        files = sorted(job_dir.glob("*.md"), reverse=True)[:limit]
+        try:
+            files = sorted(job_dir.glob("*.md"), reverse=True)[:limit]
+        except PermissionError:
+            return []
         results = []
         
         for f in files:
@@ -218,7 +224,7 @@ class HermesOutputParser:
 
 
 def scan_cron_outputs(
-    cron_output_dir: Path = Path("/root/.hermes/cron/output"),
+    cron_output_dir: Path = Path.home() / ".hermes" / "cron" / "output",
     job_id: str | None = None,
     limit: int = 10,
 ) -> list[TokenUsage]:
