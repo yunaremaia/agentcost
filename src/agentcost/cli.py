@@ -103,7 +103,14 @@ def _get_parser(agent_type: str):
 
 
 @click.group()
-@click.version_option(package_name="agentcost")
+@click.version_option(
+    None,  # resolve at runtime from package metadata / __version__
+    "--version",
+    "-V",
+    "-v",
+    package_name="agentcost",
+    prog_name="agentcost",
+)
 def cli():
     """agentcost — token usage tracker for multi-agent AI sessions."""
     pass
