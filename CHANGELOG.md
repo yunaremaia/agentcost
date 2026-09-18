@@ -9,6 +9,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 - Python 3.10 compatibility: `tomllib` fallback via `tomli` for `src/agentcost/budget.py` (#26)
+- `--strict` flag on `agentcost analyze`: log parse failures exit non-zero instead of being reported as zero usage (#83)
 
 ### Fixed
 - CI failure on Python 3.10 due to missing `tomllib` stdlib module (#26)
+- `CursorParser` no longer fails silently on unreadable log files: missing, oversized (>100MB), or non-UTF-8 logs print a warning to stderr and are skipped, so one broken file cannot mask the rest (#83)

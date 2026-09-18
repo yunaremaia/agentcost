@@ -43,35 +43,38 @@ def _format_currency(n: float) -> str:
         return f"${n:,.2f}"
 
 
-def _parse_all_logs(log_paths: Optional[List[Path]] = None) -> List[TokenUsage]:
+def _parse_all_logs(log_paths: Optional[List[Path]] = None, *, strict: bool = False) -> List[TokenUsage]:
     """Parse all logs from given paths or auto-discover."""
     all_usages = []
-    
+
     if log_paths:
         for path in log_paths:
             if path.is_file():
-                all_usages.extend(_parse_file(path))
+                all_usages.extend(_parse_file(path, strict=strict))
             elif path.is_dir():
                 for subpath in path.rglob("*"):
                     if subpath.is_file() and subpath.suffix in (".jsonl", ".json", ".log"):
-                        all_usages.extend(_parse_file(subpath))
+                        all_usages.extend(_parse_file(subpath, strict=strict))
     else:
         # First, try SQLite database (Hermes agent)
         sqlite_parser = HermesSQLiteParser()
         all_usages.extend(sqlite_parser.parse())
-        
+
         # Then discover other logs
         discovery = LogDiscovery()
         logs = discovery.discover()
         for agent_type, paths in logs.items():
             parser = _get_parser(agent_type)
             for path in paths:
-                all_usages.extend(parser.parse(path))
-    
+                if isinstance(parser, CursorParser):
+                    all_usages.extend(parser.parse(path, strict=strict))
+                else:
+                    all_usages.extend(parser.parse(path))
+
     return all_usages
 
 
-def _parse_file(path: Path) -> List[TokenUsage]:
+def _parse_file(path: Path, strict: bool = False) -> List[TokenUsage]:
     """Parse a single file, choosing parser by path."""
     path_lower = str(path).lower()
     if "claude" in path_lower:
@@ -84,6 +87,8 @@ def _parse_file(path: Path) -> List[TokenUsage]:
         parser = OpenCodeParser()
     else:
         parser = HermesParser()
+    if isinstance(parser, CursorParser):
+        return parser.parse(path, strict=strict)
     return parser.parse(path)
 
 
@@ -561,7 +566,8 @@ def budget(action, daily, weekly, monthly, as_sarif, quiet=False):
 @click.option("--date", default=None, help="Date to analyze (YYYY-MM-DD, default: today)")
 @click.option("--format", "-f", "output_format", default="cli", type=click.Choice(["cli", "json", "markdown"]))
 @click.option("--quiet", "-q", is_flag=True, help="Quiet output (JSON format)")
-def analyze(log_path, agent, period, date, output_format, quiet=False):
+@click.option("--strict", is_flag=True, help="Fail with a non-zero exit on log parse failures (#83)")
+def analyze(log_path, agent, period, date, output_format, quiet=False, strict=False):
     """Analyze a specific log file or all discovered logs."""
     if log_path:
         if agent == "claude":
@@ -572,10 +578,10 @@ def analyze(log_path, agent, period, date, output_format, quiet=False):
             parser = OpenCodeParser()
         else:
             parser = HermesParser()
-        
+
         usages = parser.parse(log_path)
     else:
-        usages = _parse_all_logs()
+        usages = _parse_all_logs(strict=strict)
     
     if quiet and output_format == "cli":
         output_format = "json"

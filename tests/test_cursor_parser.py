@@ -4,6 +4,7 @@ import json
 import pytest
 from pathlib import Path
 import tempfile
+from types import SimpleNamespace
 
 from agentcost.cursor_parser import CursorParser
 from agentcost.cost import TokenUsage
@@ -109,4 +110,53 @@ class TestCursorParser:
             f.write(entry)
             f.flush()
             result = parser.parse(Path(f.name))
+        assert result == []
+
+    def test_missing_file_warns_and_returns_empty(self, capsys, tmp_path):
+        """A missing log file warns on stderr and yields no usages (#83)."""
+        parser = CursorParser()
+        result = parser.parse(tmp_path / "definitely-missing-cursor.jsonl")
+        assert result == []
+        assert "not found" in capsys.readouterr().err
+
+    def test_missing_file_strict_raises(self, tmp_path):
+        """With strict=True a missing log file raises instead of warning (#83)."""
+        parser = CursorParser()
+        with pytest.raises(FileNotFoundError):
+            parser.parse(tmp_path / "definitely-missing-cursor.jsonl", strict=True)
+
+    def test_oversized_file_skipped_with_warning(self, tmp_path, monkeypatch, capsys):
+        """Files above 100MB are skipped with a warning (#83)."""
+        parser = CursorParser()
+        log = tmp_path / "huge.jsonl"
+        log.write_text("{}", encoding="utf-8")
+
+        real_stat = Path.stat
+
+        def fake_stat(self):
+            if self == log:
+                return SimpleNamespace(st_size=150 * 1024 * 1024)
+            return real_stat(self)
+
+        monkeypatch.setattr(Path, "stat", fake_stat)
+        result = parser.parse(log)
+        assert result == []
+        assert "exceeds 100MB" in capsys.readouterr().err
+
+    def test_utf16_log_parsed(self, tmp_path):
+        """UTF-16 encoded logs are read via the encoding fallback (#83)."""
+        parser = CursorParser()
+        entry = {"message": {"usage": {"input_tokens": 1000, "output_tokens": 500}}}
+        log = tmp_path / "cursor_utf16.jsonl"
+        log.write_text(json.dumps(entry) + "\n", encoding="utf-16")
+        result = parser.parse(log)
+        assert len(result) == 1
+        assert result[0].input_tokens == 1000
+
+    def test_binary_garbage_returns_empty_without_crash(self, tmp_path):
+        """Undecodable binary garbage yields no usages and does not crash (#83)."""
+        parser = CursorParser()
+        log = tmp_path / "cursor_binary.jsonl"
+        log.write_bytes(b"\xd8\x41\x00\xdc\x80\xff\x81\x82\x83")
+        result = parser.parse(log)
         assert result == []

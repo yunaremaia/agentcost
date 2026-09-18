@@ -1,11 +1,17 @@
 """Parser for Cursor AI coding agent logs."""
 
 import json
+import sys
 from datetime import datetime
 from pathlib import Path
 from typing import List, Dict, Any, Optional
 
 from agentcost.cost import TokenUsage
+
+# Files above this size are skipped with a warning instead of being read (#83).
+_MAX_LOG_BYTES = 100 * 1024 * 1024
+# Cursor writes UTF-8 logs; UTF-16 and latin-1 are fallbacks for odd exports.
+_ENCODINGS = ("utf-8", "utf-16", "latin-1")
 
 
 class CursorParser:
@@ -18,22 +24,53 @@ class CursorParser:
     Format: JSONL with entries containing message, usage, model, timestamp.
     """
 
-    def parse(self, log_path: Path) -> List[TokenUsage]:
-        """Parse a Cursor JSONL log file."""
-        usages = []
+    def parse(self, log_path: Path, *, strict: bool = False) -> List[TokenUsage]:
+        """Parse a Cursor JSONL log file.
+
+        Failures never abort a scan by default: each failed file prints a
+        warning to stderr and contributes no usages, so one unreadable log
+        cannot mask the rest (#83). With ``strict=True`` the same failures
+        raise instead, letting callers exit non-zero.
+        """
         try:
-            with open(log_path) as f:
-                for line in f:
-                    try:
-                        entry = json.loads(line.strip())
-                        usage = self._parse_entry(entry)
-                        if usage:
-                            usages.append(usage)
-                    except json.JSONDecodeError:
-                        continue
+            if log_path.stat().st_size > _MAX_LOG_BYTES:
+                print(f"Warning: {log_path} exceeds 100MB, skipping", file=sys.stderr)
+                return []
+
+            lines: List[str] = []
+            for encoding in _ENCODINGS:
+                try:
+                    with open(log_path, encoding=encoding) as f:
+                        lines = f.readlines()
+                    break
+                except UnicodeDecodeError:
+                    continue
+            else:
+                print(f"Warning: Could not decode {log_path}", file=sys.stderr)
+                if strict:
+                    raise ValueError(f"Could not decode {log_path}")
+                return []
+
+            usages = []
+            for line in lines:
+                try:
+                    entry = json.loads(line.strip())
+                    usage = self._parse_entry(entry)
+                    if usage:
+                        usages.append(usage)
+                except json.JSONDecodeError:
+                    continue
+            return usages
         except FileNotFoundError:
-            pass
-        return usages
+            print(f"Warning: {log_path} not found", file=sys.stderr)
+            if strict:
+                raise
+            return []
+        except ValueError as e:
+            print(f"Warning: Failed to parse {log_path}: {e}", file=sys.stderr)
+            if strict:
+                raise
+            return []
 
     def _parse_entry(self, entry: Dict[str, Any]) -> Optional[TokenUsage]:
         """Parse a single Cursor log entry."""
