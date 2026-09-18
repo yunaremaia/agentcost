@@ -67,7 +67,7 @@ class ClaudeCodeParser:
     def _normalize_model(self, model: str) -> str:
         """Normalize model name to pricing key."""
         model = model.lower().replace("-", " ").replace(".", " ")
-        if "sonnet" in model and "3 5" in model or "3.5" in model:
+        if "sonnet" in model and ("3 5" in model or "3.5" in model):
             return "claude-3-5-sonnet"
         elif "opus" in model and "4" in model:
             return "claude-opus-4"
