@@ -119,6 +119,10 @@ agentcost alert --threshold 5.0
 - **Cost-aware**: Cache read pricing (Anthropic: 90% discount)
 - **Projections**: Monthly cost estimates based on recent usage
 
+## GitHub Action
+
+Use agentcost in CI with the repository's ready-made GitHub Action. See [GitHub Action usage](GITHUB_ACTION_USAGE.md) for workflow examples, alert thresholds, inputs, and exit codes.
+
 ## SARIF Output (GitHub Code Scanning)
 
 Generate SARIF 2.1.0 output for GitHub Code Scanning integration:
