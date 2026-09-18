@@ -2,8 +2,11 @@
 from __future__ import annotations
 
 import os
+import math
 from pathlib import Path
 from typing import Optional
+
+import click
 
 try:
     import tomllib
@@ -13,6 +16,17 @@ except ModuleNotFoundError:
 CONFIG_DIR = Path.home() / ".agentcost"
 CONFIG_FILE = CONFIG_DIR / "config.toml"
 PROJECT_CONFIG_NAME = ".agentcost.toml"
+
+
+def validate_threshold(value: float, name: str):
+    """Reject invalid spending thresholds before saving or checking usage."""
+    if (
+        not isinstance(value, (int, float))
+        or isinstance(value, bool)
+        or not math.isfinite(value)
+        or value <= 0
+    ):
+        raise click.BadParameter(f"{name} must be a finite positive number, got {value}")
 
 
 def _ensure_config_dir():
@@ -68,6 +82,9 @@ def save_budget_config(daily: Optional[float] = None, weekly: Optional[float] = 
         config["weekly"] = weekly
     if monthly is not None:
         config["monthly"] = monthly
+
+    for name, value in config.items():
+        validate_threshold(value, f"{name} budget")
     
     if project:
         target = Path.cwd() / PROJECT_CONFIG_NAME

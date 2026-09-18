@@ -78,8 +78,8 @@ def test_alert_quiet_under_threshold(sample_claude_log: Path):
 
 def test_alert_quiet_over_threshold(sample_claude_log: Path):
     runner = CliRunner()
-    # Threshold 0 => exit 1, no alert banner in quiet mode
-    result = runner.invoke(cli, ["alert", "-p", str(sample_claude_log), "--threshold", "0.0", "-q"])
+    # A positive threshold below the fixture's cost still triggers an alert.
+    result = runner.invoke(cli, ["alert", "-p", str(sample_claude_log), "--threshold", "0.000001", "-q"])
     assert result.exit_code == 1
     assert "ALERT: Today's spending" not in result.output
 
