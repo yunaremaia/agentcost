@@ -7,7 +7,7 @@ import json
 import tempfile
 
 from agentcost.cost import TokenUsage, CostBreakdown, calculate_cost, summarize_usage, MODEL_PRICING
-from agentcost.parsers import ClaudeCodeParser, CodexParser, HermesParser
+from agentcost.parsers import ClaudeCodeParser, CodexParser, HermesParser, OpenCodeParser
 from agentcost.discovery import LogDiscovery
 from agentcost.report import ReportGenerator
 
@@ -113,6 +113,31 @@ class TestClaudeCodeParser:
         assert usages[0].output_tokens == 500
         assert "sonnet" in usages[0].model
 
+    def test_parse_with_cache_write(self, tmp_path):
+        """Parse Claude Code entry with cache write tokens."""
+        log_file = tmp_path / "session.jsonl"
+        log_file.write_text(
+            json.dumps({
+                "type": "assistant",
+                "message": {
+                    "model": "claude-3-5-sonnet",
+                    "usage": {
+                        "input_tokens": 1000,
+                        "output_tokens": 500,
+                        "cache_read_input_tokens": 200,
+                        "cache_creation_input_tokens": 300,
+                    },
+                },
+                "timestamp": "2026-09-11T10:00:00",
+            }) + "\n"
+        )
+        parser = ClaudeCodeParser()
+        usages = parser.parse(log_file)
+        assert len(usages) == 1
+        assert usages[0].cache_write_tokens == 300
+        breakdown = summarize_usage(usages)
+        assert breakdown.total_cache_write == 300
+
     def test_parse_multiple_entries(self, tmp_path):
         """Parse multiple JSONL entries."""
         log_file = tmp_path / "session.jsonl"
@@ -158,6 +183,102 @@ class TestCodexParser:
         usages = parser.parse(log_file)
         assert len(usages) == 1
         assert usages[0].input_tokens == 500
+
+    def test_parse_codex_with_cache_write(self, tmp_path):
+        log_file = tmp_path / "codex.jsonl"
+        log_file.write_text(
+            json.dumps({
+                "model": "gpt-4o",
+                "usage": {
+                    "input_tokens": 500,
+                    "output_tokens": 200,
+                    "cache_read_input_tokens": 100,
+                    "cache_creation_input_tokens": 300,
+                },
+                "timestamp": "2026-09-11T10:00:00",
+            }) + "\n"
+        )
+        parser = CodexParser()
+        usages = parser.parse(log_file)
+        assert len(usages) == 1
+        assert usages[0].cache_write_tokens == 300
+        breakdown = summarize_usage(usages)
+        assert breakdown.total_cache_write == 300
+
+
+class TestHermesParser:
+    """Parse Hermes agent logs."""
+
+    def test_parse_hermes_tokens_subobject(self, tmp_path):
+        log_file = tmp_path / "hermes.jsonl"
+        log_file.write_text(
+            json.dumps({
+                "type": "message",
+                "role": "assistant",
+                "model": "claude-3-5-sonnet",
+                "tokens": {
+                    "input_tokens": 1000,
+                    "output_tokens": 400,
+                    "cache_read_input_tokens": 200,
+                    "cache_creation_input_tokens": 500,
+                },
+                "timestamp": "2026-09-11T10:00:00",
+            }) + "\n"
+        )
+        parser = HermesParser()
+        usages = parser.parse(log_file)
+        assert len(usages) == 1
+        assert usages[0].cache_write_tokens == 500
+        breakdown = summarize_usage(usages)
+        assert breakdown.total_cache_write == 500
+
+    def test_parse_hermes_usage_subobject(self, tmp_path):
+        log_file = tmp_path / "hermes.jsonl"
+        log_file.write_text(
+            json.dumps({
+                "type": "message",
+                "role": "assistant",
+                "model": "claude-3-5-sonnet",
+                "usage": {
+                    "input_tokens": 1000,
+                    "output_tokens": 400,
+                    "cache_read_input_tokens": 200,
+                    "cache_creation_input_tokens": 250,
+                },
+                "timestamp": "2026-09-11T10:00:00",
+            }) + "\n"
+        )
+        parser = HermesParser()
+        usages = parser.parse(log_file)
+        assert len(usages) == 1
+        assert usages[0].cache_write_tokens == 250
+        breakdown = summarize_usage(usages)
+        assert breakdown.total_cache_write == 250
+
+
+class TestOpenCodeParser:
+    """Parse OpenCode CLI logs."""
+
+    def test_parse_opencode_with_cache_write(self, tmp_path):
+        log_file = tmp_path / "opencode.jsonl"
+        log_file.write_text(
+            json.dumps({
+                "model": "claude-3-5-sonnet",
+                "usage": {
+                    "input_tokens": 800,
+                    "output_tokens": 300,
+                    "cache_read_input_tokens": 150,
+                    "cache_creation_input_tokens": 450,
+                },
+                "timestamp": "2026-09-11T10:00:00",
+            }) + "\n"
+        )
+        parser = OpenCodeParser()
+        usages = parser.parse(log_file)
+        assert len(usages) == 1
+        assert usages[0].cache_write_tokens == 450
+        breakdown = summarize_usage(usages)
+        assert breakdown.total_cache_write == 450
 
 
 class TestLogDiscovery:
