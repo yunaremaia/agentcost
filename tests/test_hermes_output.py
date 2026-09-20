@@ -10,7 +10,17 @@ from agentcost.hermes_output import (
     _estimate_tokens_from_text,
     _parse_tool_calls_from_output,
     TOOL_CALL_OVERHEAD_TOKENS,
+    get_tool_overhead,
 )
+
+
+class TestToolOverhead:
+    def test_known_tool_uses_configured_value(self):
+        assert get_tool_overhead("terminal") == TOOL_CALL_OVERHEAD_TOKENS["terminal"]
+
+    def test_unknown_tool_warns_and_uses_default(self, caplog):
+        assert get_tool_overhead("not_a_real_tool") == 100
+        assert "Unknown tool" in caplog.text
 
 
 class TestEstimateTokensFromText:

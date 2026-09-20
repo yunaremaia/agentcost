@@ -156,6 +156,12 @@ SARIF output includes one rule per budget period (daily/weekly/monthly). When th
 | Hermes      | JSON/JSONL          | ✅     |
 | Cursor      | JSONL               | ✅     |
 
+## Hermes tool overhead estimates
+
+Hermes tool-call prompt overhead estimates are defined in `TOOL_CALL_OVERHEAD_TOKENS` in `src/agentcost/hermes_output.py`. This dictionary is the canonical source for these estimates.
+
+When Hermes adds a new tool, add its name and estimated token overhead to that dictionary. Unknown tools fall back to 100 tokens and emit a warning so missing entries are visible instead of silently using the default.
+
 ## Model pricing
 
 Built-in pricing for Claude 3.x, GPT-4o, Gemini 1.5. Auto-fallback for unknown models.

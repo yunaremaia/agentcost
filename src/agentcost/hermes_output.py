@@ -6,6 +6,7 @@ per cron task based on model pricing.
 from __future__ import annotations
 
 import json
+import logging
 import re
 from datetime import datetime
 from pathlib import Path
@@ -17,26 +18,42 @@ from agentcost.cost import TokenUsage
 # Approximate token counts for tool call overhead (prompt side)
 # These are rough estimates based on observed patterns
 TOOL_CALL_OVERHEAD_TOKENS = {
-    "terminal": 150,       # tool name + command echo
-    "execute_code": 200,   # tool name + python code echo
-    "delegate_task": 300,  # tool name + full subagent context
-    "browser_exec": 250,   # tool name + JS code + DOM text
-    "patch": 100,          # tool name + file path + small diff
-    "read_file": 80,       # tool name + path + offset
-    "search_files": 100,   # tool name + pattern + path
-    "write_file": 120,     # tool name + path + content preview
-    "web_search": 50,      # tool name + query
-    "web_extract": 50,     # tool name + URL
-    "tool_search": 50,     # tool name + query
-    "tool_call": 200,      # generic tool call overhead
-    "memory": 60,          # memory read/write
-    "todo_list": 40,       # todo operations
-    "cronjob_manage": 80,  # cron operations
-    "vision_analyze": 400, # image tokens are extra
-    "text_to_speech": 30,  # small prompts
-    "clarify": 100,        # question prompts
-    "browser_vault": 50,   # vault operations
+    "terminal": 150,
+    "execute_code": 200,
+    "delegate_task": 300,
+    "browser_exec": 250,
+    "patch": 100,
+    "read_file": 80,
+    "search_files": 100,
+    "write_file": 120,
+    "web_search": 50,
+    "web_extract": 50,
+    "tool_search": 50,
+    "tool_call": 200,
+    "memory": 60,
+    "todo_list": 40,
+    "cronjob_manage": 80,
+    "vision_analyze": 400,
+    "text_to_speech": 30,
+    "clarify": 100,
+    "browser_vault": 50,
 }
+
+DEFAULT_TOOL_OVERHEAD_TOKENS = 100
+logger = logging.getLogger(__name__)
+
+
+def get_tool_overhead(tool_name: str) -> int:
+    """Return the estimated token overhead for a tool call."""
+    if tool_name in TOOL_CALL_OVERHEAD_TOKENS:
+        return TOOL_CALL_OVERHEAD_TOKENS[tool_name]
+
+    logger.warning(
+        "Unknown tool %r; using default overhead of %d tokens",
+        tool_name,
+        DEFAULT_TOOL_OVERHEAD_TOKENS,
+    )
+    return DEFAULT_TOOL_OVERHEAD_TOKENS
 
 
 def _estimate_tokens_from_text(text: str) -> int:
@@ -159,7 +176,7 @@ class HermesOutputParser:
         tool_response_tokens = 0
         for call in tool_calls:
             tool_name = call.get("tool", "unknown")
-            overhead = TOOL_CALL_OVERHEAD_TOKENS.get(tool_name, 100)
+            overhead = get_tool_overhead(tool_name)
             tool_prompt_tokens += overhead
             
             # Estimate response tokens from content
