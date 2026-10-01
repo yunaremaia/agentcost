@@ -113,7 +113,10 @@ def _get_parser(agent_type: str):
     "--version",
     "-V",
     "-v",
-    package_name="agentcost",
+    # The distribution name (PyPI), not the module or CLI name. Click 8.5 falls
+    # back to scanning installed distributions for a top-level module when this
+    # does not match, and raises if more than one provides it.
+    package_name="agentcost-py",
     prog_name="agentcost",
 )
 def cli():

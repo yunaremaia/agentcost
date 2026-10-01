@@ -133,6 +133,23 @@ def test_only_the_distribution_name_changed() -> None:
     )
 
 
+def test_version_flag_resolves_the_distribution() -> None:
+    """`version_option(package_name=...)` is a distribution lookup, not a module one.
+
+    Click resolves it via importlib.metadata.version(); when it does not match an
+    installed distribution Click 8.5 falls back to scanning distributions for a
+    top-level module of that name and raises if several provide it. Keeping this
+    string in sync with [project] name is what prevents that.
+    """
+    cli = read(REPO_ROOT / "src" / "agentcost" / "cli.py")
+    names = re.findall(r'package_name=["\']([^"\']+)["\']', cli)
+    assert names, "version_option no longer declares an explicit package_name"
+    assert all(name == project_name() for name in names), (
+        f"version_option package_name must be the distribution {project_name()!r}, "
+        f"found {names}"
+    )
+
+
 def test_no_pypi_badge_while_unpublished(readme: str) -> None:
     """A badge for a package that is not on PyPI renders 'not found'."""
     assert "img.shields.io/pypi" not in readme, (
