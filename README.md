@@ -3,8 +3,6 @@
 [![CI](https://github.com/yunaremaia/agentcost/actions/workflows/ci.yml/badge.svg)](https://github.com/yunaremaia/agentcost/actions/workflows/ci.yml)
 [![Python](https://img.shields.io/badge/python-3.10%2B-blue.svg)](https://www.python.org/downloads/)
 [![License](https://img.shields.io/badge/license-MIT-green.svg)](https://github.com/yunaremaia/agentcost/blob/main/LICENSE)
-[![PyPI version](https://img.shields.io/pypi/v/agentcost.svg)](https://pypi.org/project/agentcost/)
-[![PyPI downloads](https://img.shields.io/pypi/dm/agentcost.svg)](https://pypi.org/project/agentcost/)
 
 **Token usage tracker for multi-agent AI sessions.**
 
