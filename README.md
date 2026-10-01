@@ -11,8 +11,11 @@
 ## Install
 
 ```bash
-pip install agentcost
+pip install agentcost-py
 ```
+
+> **Package name:** the short PyPI name `agentcost` belongs to a different
+> project, not this one. Install `agentcost-py` as shown above.
 
 ## Quick Start
 

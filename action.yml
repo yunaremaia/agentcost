@@ -33,7 +33,7 @@ runs:
 
     - name: Install agentcost
       shell: bash
-      run: pip install agentcost
+      run: pip install agentcost-py
 
     - name: Run agentcost
       id: agentcost

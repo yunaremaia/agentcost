@@ -3,7 +3,7 @@ requires = ["setuptools>=68.0", "wheel"]
 build-backend = "setuptools.build_meta"
 
 [project]
-name = "agentcost"
+name = "agentcost-py"
 version = "0.3.0"
 description = "Token usage tracker for multi-agent AI sessions"
 readme = "README.md"

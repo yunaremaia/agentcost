@@ -4,5 +4,5 @@
   language: python
   files: '.*'
   additional_dependencies:
-    - "agentcost>=0.3.0"
+    - "agentcost-py>=0.3.0"
   args: ["--json-output"]
