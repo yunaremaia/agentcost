@@ -8,6 +8,7 @@ from typing import List, Dict, Any, Optional
 
 from agentcost.cost import TokenUsage
 from agentcost._io import _read_lines_with_fallback
+from agentcost.parsers import _validate_token_count
 
 # Files above this size are skipped with a warning instead of being read (#83).
 _MAX_LOG_BYTES = 100 * 1024 * 1024
@@ -92,10 +93,10 @@ class CursorParser:
         
         return TokenUsage(
             model=model,
-            input_tokens=usage_data.get("input_tokens", 0),
-            output_tokens=usage_data.get("output_tokens", 0),
-            cache_read_tokens=usage_data.get("cache_read_input_tokens", 0),
-            cache_write_tokens=usage_data.get("cache_creation_input_tokens", 0),
+            input_tokens=_validate_token_count(usage_data.get("input_tokens"), "input_tokens"),
+            output_tokens=_validate_token_count(usage_data.get("output_tokens"), "output_tokens"),
+            cache_read_tokens=_validate_token_count(usage_data.get("cache_read_input_tokens"), "cache_read_tokens"),
+            cache_write_tokens=_validate_token_count(usage_data.get("cache_creation_input_tokens"), "cache_write_tokens"),
             timestamp=timestamp,
             agent_id="cursor-agent",
             session_id=session_id,
