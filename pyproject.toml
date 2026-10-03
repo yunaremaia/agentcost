@@ -18,7 +18,14 @@ classifiers = [
     "Programming Language :: Python :: 3",
     "Topic :: Software Development :: Quality Assurance",
 ]
-dependencies = ["click>=8.1", "rich>=13.0"]
+dependencies = [
+    "click>=8.1",
+    "rich>=13.0",
+    # budget.py reads the TOML budget config through a tomllib/tomli
+    # try/except, so the 3.10 fallback has to be a real dependency:
+    # without it a `pip install` of the wheel cannot even import the CLI.
+    "tomli>=2.0; python_version < '3.11'",
+]
 
 [project.scripts]
 agentcost = "agentcost.cli:cli"
