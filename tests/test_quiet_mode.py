@@ -7,6 +7,7 @@ from click.testing import CliRunner
 import pytest
 
 from agentcost.cli import cli
+from agentcost.budget import load_budget_config
 
 
 @pytest.fixture
@@ -106,3 +107,32 @@ def test_compare_quiet(sample_claude_log: Path):
     data = json.loads(result.output)
     assert isinstance(data, list)
     assert len(data) > 0
+
+
+@pytest.mark.parametrize("quiet_flag", ["--quiet", "-q"])
+@pytest.mark.parametrize("thresholds", [
+    {"daily": 5.0},
+    {"daily": 5.0, "weekly": 25.0, "monthly": 100.0},
+])
+def test_budget_set_quiet(tmp_path, monkeypatch, quiet_flag, thresholds):
+    monkeypatch.setattr("agentcost.budget.CONFIG_DIR", tmp_path)
+    monkeypatch.setattr("agentcost.budget.CONFIG_FILE", tmp_path / "config.toml")
+    monkeypatch.chdir(tmp_path)
+    runner = CliRunner()
+    args = ["budget", "set"]
+    for period, amount in thresholds.items():
+        args.extend([f"--{period}", str(amount)])
+
+    normal = runner.invoke(cli, args)
+    assert normal.exit_code == 0
+    assert "Budget thresholds saved" in normal.output
+    for period, amount in thresholds.items():
+        assert f"{period.title()}: ${amount:.2f}" in normal.output
+    expected_config = (tmp_path / "config.toml").read_bytes()
+    (tmp_path / "config.toml").unlink()
+
+    quiet = runner.invoke(cli, args + [quiet_flag])
+    assert quiet.exit_code == normal.exit_code
+    assert quiet.output == ""
+    assert (tmp_path / "config.toml").read_bytes() == expected_config
+    assert load_budget_config() == thresholds

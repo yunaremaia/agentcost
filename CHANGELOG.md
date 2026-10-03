@@ -12,6 +12,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - `--strict` flag on `agentcost analyze`: log parse failures exit non-zero instead of being reported as zero usage (#83)
 
 ### Fixed
+- `budget set --quiet` (and `-q`) now suppresses per-period budget output while still saving the configured thresholds (#188)
 - `ClaudeCodeParser`, `CodexParser`, `OpenCodeParser` and `HermesParser` no longer crash on UTF-16 or other non-UTF-8 logs: all five parsers now share one encoding-fallback reader, so one such file cannot abort a directory scan (#182)
 - BOM-less UTF-16 logs (`utf-16-le` / `utf-16-be`) are now decoded by the shared encoding-fallback reader instead of being read as NUL-filled UTF-8 and silently yielding zero usages (#185)
 - CI failure on Python 3.10 due to missing `tomllib` stdlib module (#26)

@@ -616,12 +616,12 @@ def budget(action, daily, weekly, monthly, as_sarif, quiet=False):
         save_budget_config(daily, weekly, monthly)
         if not quiet:
             console.print("[green]Budget thresholds saved to ~/.agentcost/config.toml[/green]")
-        if daily:
-            console.print(f"  Daily: ${daily:.2f}")
-        if weekly:
-            console.print(f"  Weekly: ${weekly:.2f}")
-        if monthly:
-            console.print(f"  Monthly: ${monthly:.2f}")
+            if daily:
+                console.print(f"  Daily: ${daily:.2f}")
+            if weekly:
+                console.print(f"  Weekly: ${weekly:.2f}")
+            if monthly:
+                console.print(f"  Monthly: ${monthly:.2f}")
     elif action == "show":
         config = load_budget_config()
         if not config:
