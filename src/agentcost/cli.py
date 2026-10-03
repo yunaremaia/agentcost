@@ -483,9 +483,9 @@ def alert(log_paths, agent, threshold, as_sarif, quiet=False):
             tool_version=__version__,
         )
         click.echo(sarif_to_string(sarif_doc))
-        sys.exit(1 if total_cost >= threshold else 0)
+        sys.exit(1 if total_cost > threshold else 0)
     
-    if total_cost >= threshold:
+    if total_cost > threshold:
         if not quiet:
             console.print(f"[bold red]ALERT: Today's spending {_format_currency(total_cost)} exceeds threshold {_format_currency(threshold)}[/bold red]")
         sys.exit(1)
