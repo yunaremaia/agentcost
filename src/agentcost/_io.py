@@ -121,8 +121,13 @@ def _read_lines_with_fallback(log_path: Path) -> ReadResult:
             recoverable=False,
         )
 
+    # utf-8-sig, not utf-8: the plain codec keeps a leading BOM as U+FEFF, so
+    # the first line reached json.loads as '\ufeff{...', raised, and was
+    # skipped -- silently dropping the first entry of the session. utf-8-sig
+    # strips the BOM when present and is byte-for-byte identical to utf-8 when
+    # it is not, so BOM-less logs are unaffected.
     try:
-        with open(log_path, encoding="utf-8") as f:
+        with open(log_path, encoding="utf-8-sig") as f:
             return ReadResult(lines=f.readlines(), encoding="utf-8")
     except UnicodeError:
         pass
