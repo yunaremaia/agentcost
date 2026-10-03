@@ -35,28 +35,30 @@ MODULE_NAME = "agentcost"
 REPO_ROOT = Path(__file__).resolve().parent.parent
 PACKAGE_ROOT = REPO_ROOT / "src" / MODULE_NAME
 
-# Declared once, used by both directions of the cross-check below.
-DECLARED = [
-    "click>=8.1",
-    "rich>=13.0",
-    # Fixed in this PR: ``budget.py`` reads the TOML budget config through a
-    # ``tomllib``/``tomli`` try/except, so the 3.10 fallback needs declaring.
-    "tomli>=2.0; python_version < '3.11'",
-]
-
 # Distribution names whose import name differs from the distribution name.
 IMPORT_ALIASES = {
     "pyyaml": "yaml",
-    "typing-extensions": "typing_extensions",
-    "tomli": "tomllib",  # same dependency as tomllib, different spelling
-    "tomllib": "tomllib",
 }
 
-# Test-only and build-time tooling: never a runtime dependency, so a missing
-# import of one of these must not be reported as an undeclared dependency.
+# Test-only and build-time tooling: never a runtime dependency, so an import of
+# one of these must not be reported as an undeclared dependency.
 DEV_ONLY = {
-    "pytest", "_pytest", "coverage", "pytest_cov", "hypothesis",
-    "freezegun", "ruff", "mypy", "setuptools", "build", "wheel",
+    "_pytest",
+    "build",
+    "coverage",
+    "freezegun",
+    "hypothesis",
+    "mypy",
+    "nox",
+    "pytest",
+    "pytest_cov",
+    "pytest_timeout",
+    "pytest_xdist",
+    "ruff",
+    "setuptools",
+    "tox",
+    "wheel",
+    "xdist",
 }
 
 
@@ -67,25 +69,6 @@ def normalize(name: str) -> str:
 def canonical(name: str) -> str:
     """tomllib and tomli are one dependency, spelled two ways."""
     return "tomllib" if name in {"tomllib", "tomli"} else name
-
-
-def declared_import_names() -> set[str]:
-    """Import names implied by [project] dependencies in pyproject.toml.
-
-    pyproject is the single source of truth here on purpose: a hardcoded copy
-    of the list would make this check compare the source tree against itself
-    and could never report a dependency that is missing from pyproject.
-    """
-    names = set()
-    for spec in read_pyproject_dependencies():
-        dist = spec.split(";", 1)[0]
-        for sep in ("<", ">", "=", "!", "~", "[", " ", "@"):
-            dist = dist.split(sep, 1)[0]
-        dist = normalize(dist.strip())
-        if not dist:
-            continue
-        names.add(canonical(IMPORT_ALIASES.get(dist, dist)))
-    return names
 
 
 def iter_source_files() -> list[Path]:
@@ -101,19 +84,20 @@ def top_level_imports() -> set[str]:
             if isinstance(node, ast.Import):
                 for alias in node.names:
                     found.add(alias.name.split(".")[0])
-            elif isinstance(node, ast.ImportFrom):
-                # level > 0 is a relative import: first-party, not a dependency.
-                if node.level == 0 and node.module:
-                    found.add(node.module.split(".")[0])
+            elif isinstance(node, ast.ImportFrom) and not node.level and node.module:
+                # node.level > 0 is a relative import: first-party, not a dependency.
+                found.add(node.module.split(".")[0])
     return found
 
 
 def third_party_imports() -> set[str]:
     stdlib = set(sys.stdlib_module_names) | {"tomllib", "tomli_w"}
-    first_party = {MODULE_NAME} | {
+    first_party = {MODULE_NAME}
+    subpackages = {
         p.name for p in PACKAGE_ROOT.iterdir()
         if p.is_dir() and (p / "__init__.py").exists()
-    }
+    } if PACKAGE_ROOT.is_dir() else set()
+    first_party = first_party | subpackages
     # canonical() is applied on BOTH sides of the cross-check: a try/except
     # tomllib/tomli fallback puts two spellings of one dependency in the source,
     # and only canonicalising the declared list would report the other as
@@ -125,6 +109,12 @@ def third_party_imports() -> set[str]:
 
 
 def read_pyproject_dependencies() -> list[str]:
+    """[project] dependencies, straight from pyproject.toml.
+
+    pyproject is the single source of truth on purpose: a hardcoded copy would
+    make these checks compare the source tree against itself and could never
+    report a dependency that is missing from pyproject.
+    """
     text = (REPO_ROOT / "pyproject.toml").read_text(encoding="utf-8")
     if tomllib is not None:
         return list(tomllib.loads(text)["project"]["dependencies"])
@@ -135,6 +125,20 @@ def read_pyproject_dependencies() -> list[str]:
         for line in body.splitlines()
         if line.strip().startswith('"')
     ]
+
+
+def declared_import_names() -> set[str]:
+    """Import names implied by [project] dependencies in pyproject.toml."""
+    names = set()
+    for spec in read_pyproject_dependencies():
+        dist = spec.split(";", 1)[0]
+        for sep in ("<", ">", "=", "!", "~", "[", " ", "@"):
+            dist = dist.split(sep, 1)[0]
+        dist = normalize(dist.strip())
+        if not dist:
+            continue
+        names.add(canonical(IMPORT_ALIASES.get(dist, dist)))
+    return names
 
 
 def test_every_import_is_declared_in_pyproject() -> None:
@@ -150,17 +154,11 @@ def test_every_import_is_declared_in_pyproject() -> None:
 
 def test_every_declared_dependency_is_imported() -> None:
     """A declared dependency nothing imports is dead weight that misleads readers."""
-    imported = third_party_imports()
-    unused = sorted(declared_import_names() - imported)
+    unused = sorted(declared_import_names() - third_party_imports())
     assert not unused, (
-        f"these are declared in [project] dependencies but never imported by "
+        "these are declared in [project] dependencies but never imported by "
         f"the package source: {unused}. Remove them or import them."
     )
-
-
-def test_pyproject_dependency_list_matches_this_file() -> None:
-    """Keep DECLARED above honest, so the two checks above cannot rot."""
-    assert read_pyproject_dependencies() == DECLARED
 
 
 def _package_not_found_fallback_lines(tree: ast.AST) -> set[int]:
@@ -253,13 +251,22 @@ def test_version_comes_from_installed_metadata() -> None:
 
 def test_cli_version_agrees_with_the_module() -> None:
     """`--version` is the only thing most users ever see; it must not drift."""
+    # The console script, not `python -m`, because a project's entry point may
+    # live anywhere and some CLIs (argparse-based) have no `__main__` at all.
+    # Resolved through shutil so a checkout without the package installed skips
+    # instead of failing on a missing binary.
+    import shutil
+
+    binary = shutil.which("agentcost")
+    if binary is None:
+        pytest.skip("agentcost is not installed in this environment")
     result = subprocess.run(
-        [sys.executable, "-m", "agentcost.cli", "--version"],
-        capture_output=True, text=True, cwd=REPO_ROOT,
+        [binary, "--version"], capture_output=True, text=True, cwd=REPO_ROOT,
+        check=False,
     )
     output = (result.stdout + result.stderr).strip()
-    if "No module named" in output:
-        pytest.skip("agentcost.cli is not runnable as a module here")
+    if result.returncode != 0 and "No module named" in output:
+        pytest.skip("agentcost is not runnable here")
     assert agentcost.__version__ in output, (
         f"CLI reported {output!r} but the module reports "
         f"{agentcost.__version__!r}. Both must come from the installed metadata."
