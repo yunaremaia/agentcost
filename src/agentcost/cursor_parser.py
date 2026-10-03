@@ -38,12 +38,13 @@ class CursorParser:
                 return []
 
             result = _read_lines_with_fallback(log_path)
-            if result.lossy:
-                print(
-                    "Warning: Not read faithfully, some bytes could not be "
-                    f"decoded: {log_path}",
-                    file=sys.stderr,
-                )
+            if result.warning:
+                print(f"Warning: {result.warning}", file=sys.stderr)
+                # A log that is not text at all yields no entries under any
+                # decoding, so a strict parse must fail rather than report it
+                # as an empty session.
+                if strict and not result.recoverable:
+                    raise ValueError(f"Could not decode {log_path}")
 
             usages = []
             for line in result.lines:

@@ -41,11 +41,8 @@ class ClaudeCodeParser:
         usages = []
         try:
             result = _read_lines_with_fallback(log_path)
-            if result.lossy:
-                logger.warning(
-                    "Not read faithfully, some bytes could not be decoded: %s",
-                    log_path,
-                )
+            if result.warning:
+                logger.warning(result.warning)
             for line in result.lines:
                 try:
                     entry = json.loads(line.strip())
@@ -120,11 +117,8 @@ class CodexParser:
         usages = []
         try:
             result = _read_lines_with_fallback(log_path)
-            if result.lossy:
-                logger.warning(
-                    "Not read faithfully, some bytes could not be decoded: %s",
-                    log_path,
-                )
+            if result.warning:
+                logger.warning(result.warning)
             for line in result.lines:
                 try:
                     entry = json.loads(line.strip())
@@ -177,11 +171,8 @@ class HermesParser:
         usages = []
         try:
             result = _read_lines_with_fallback(log_path)
-            if result.lossy:
-                logger.warning(
-                    "Not read faithfully, some bytes could not be decoded: %s",
-                    log_path,
-                )
+            if result.warning:
+                logger.warning(result.warning)
             for line in result.lines:
                 try:
                     entry = json.loads(line.strip())
@@ -230,11 +221,8 @@ class OpenCodeParser:
         usages = []
         try:
             result = _read_lines_with_fallback(log_path)
-            if result.lossy:
-                logger.warning(
-                    "Not read faithfully, some bytes could not be decoded: %s",
-                    log_path,
-                )
+            if result.warning:
+                logger.warning(result.warning)
             for line in result.lines:
                 try:
                     entry = json.loads(line.strip())
