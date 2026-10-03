@@ -12,5 +12,6 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - `--strict` flag on `agentcost analyze`: log parse failures exit non-zero instead of being reported as zero usage (#83)
 
 ### Fixed
+- `ClaudeCodeParser`, `CodexParser`, `OpenCodeParser` and `HermesParser` no longer crash on UTF-16 or other non-UTF-8 logs: all five parsers now share one encoding-fallback reader, so one such file cannot abort a directory scan (#182)
 - CI failure on Python 3.10 due to missing `tomllib` stdlib module (#26)
 - `CursorParser` no longer fails silently on unreadable log files: missing, oversized (>100MB), or non-UTF-8 logs print a warning to stderr and are skipped, so one broken file cannot mask the rest (#83)

@@ -6,6 +6,7 @@ from pathlib import Path
 from typing import List, Dict, Any, Optional
 
 from agentcost.cost import TokenUsage
+from agentcost._io import _read_lines_with_fallback
 import logging
 import math
 
@@ -39,15 +40,18 @@ class ClaudeCodeParser:
         """Parse a Claude Code JSONL file."""
         usages = []
         try:
-            with open(log_path) as f:
-                for line in f:
-                    try:
-                        entry = json.loads(line.strip())
-                        usage = self._parse_entry(entry)
-                        if usage:
-                            usages.append(usage)
-                    except json.JSONDecodeError:
-                        continue
+            lines = _read_lines_with_fallback(log_path)
+            if lines is None:
+                logger.warning("Could not decode %s", log_path)
+                return usages
+            for line in lines:
+                try:
+                    entry = json.loads(line.strip())
+                    usage = self._parse_entry(entry)
+                    if usage:
+                        usages.append(usage)
+                except json.JSONDecodeError:
+                    continue
         except FileNotFoundError:
             pass
         return usages
@@ -113,15 +117,18 @@ class CodexParser:
         """Parse a Codex log file."""
         usages = []
         try:
-            with open(log_path) as f:
-                for line in f:
-                    try:
-                        entry = json.loads(line.strip())
-                        usage = self._parse_entry(entry)
-                        if usage:
-                            usages.append(usage)
-                    except json.JSONDecodeError:
-                        continue
+            lines = _read_lines_with_fallback(log_path)
+            if lines is None:
+                logger.warning("Could not decode %s", log_path)
+                return usages
+            for line in lines:
+                try:
+                    entry = json.loads(line.strip())
+                    usage = self._parse_entry(entry)
+                    if usage:
+                        usages.append(usage)
+                except json.JSONDecodeError:
+                    continue
         except FileNotFoundError:
             pass
         return usages
@@ -165,15 +172,18 @@ class HermesParser:
         """Parse a Hermes log file."""
         usages = []
         try:
-            with open(log_path) as f:
-                for line in f:
-                    try:
-                        entry = json.loads(line.strip())
-                        usage = self._parse_entry(entry)
-                        if usage:
-                            usages.append(usage)
-                    except json.JSONDecodeError:
-                        continue
+            lines = _read_lines_with_fallback(log_path)
+            if lines is None:
+                logger.warning("Could not decode %s", log_path)
+                return usages
+            for line in lines:
+                try:
+                    entry = json.loads(line.strip())
+                    usage = self._parse_entry(entry)
+                    if usage:
+                        usages.append(usage)
+                except json.JSONDecodeError:
+                    continue
         except FileNotFoundError:
             pass
         return usages
@@ -213,15 +223,18 @@ class OpenCodeParser:
         """Parse an OpenCode log file."""
         usages = []
         try:
-            with open(log_path) as f:
-                for line in f:
-                    try:
-                        entry = json.loads(line.strip())
-                        usage = self._parse_entry(entry)
-                        if usage:
-                            usages.append(usage)
-                    except json.JSONDecodeError:
-                        continue
+            lines = _read_lines_with_fallback(log_path)
+            if lines is None:
+                logger.warning("Could not decode %s", log_path)
+                return usages
+            for line in lines:
+                try:
+                    entry = json.loads(line.strip())
+                    usage = self._parse_entry(entry)
+                    if usage:
+                        usages.append(usage)
+                except json.JSONDecodeError:
+                    continue
         except FileNotFoundError:
             pass
         return usages

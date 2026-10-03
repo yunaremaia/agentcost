@@ -7,11 +7,10 @@ from pathlib import Path
 from typing import List, Dict, Any, Optional
 
 from agentcost.cost import TokenUsage
+from agentcost._io import _read_lines_with_fallback
 
 # Files above this size are skipped with a warning instead of being read (#83).
 _MAX_LOG_BYTES = 100 * 1024 * 1024
-# Cursor writes UTF-8 logs; UTF-16 and latin-1 are fallbacks for odd exports.
-_ENCODINGS = ("utf-8", "utf-16", "latin-1")
 
 
 class CursorParser:
@@ -37,15 +36,8 @@ class CursorParser:
                 print(f"Warning: {log_path} exceeds 100MB, skipping", file=sys.stderr)
                 return []
 
-            lines: List[str] = []
-            for encoding in _ENCODINGS:
-                try:
-                    with open(log_path, encoding=encoding) as f:
-                        lines = f.readlines()
-                    break
-                except UnicodeDecodeError:
-                    continue
-            else:
+            lines = _read_lines_with_fallback(log_path)
+            if lines is None:
                 print(f"Warning: Could not decode {log_path}", file=sys.stderr)
                 if strict:
                     raise ValueError(f"Could not decode {log_path}")
