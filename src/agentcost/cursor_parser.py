@@ -37,15 +37,16 @@ class CursorParser:
                 print(f"Warning: {log_path} exceeds 100MB, skipping", file=sys.stderr)
                 return []
 
-            lines = _read_lines_with_fallback(log_path)
-            if lines is None:
-                print(f"Warning: Could not decode {log_path}", file=sys.stderr)
-                if strict:
-                    raise ValueError(f"Could not decode {log_path}")
-                return []
+            result = _read_lines_with_fallback(log_path)
+            if result.lossy:
+                print(
+                    "Warning: Not read faithfully, some bytes could not be "
+                    f"decoded: {log_path}",
+                    file=sys.stderr,
+                )
 
             usages = []
-            for line in lines:
+            for line in result.lines:
                 try:
                     entry = json.loads(line.strip())
                     usage = self._parse_entry(entry)

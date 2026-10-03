@@ -40,11 +40,13 @@ class ClaudeCodeParser:
         """Parse a Claude Code JSONL file."""
         usages = []
         try:
-            lines = _read_lines_with_fallback(log_path)
-            if lines is None:
-                logger.warning("Could not decode %s", log_path)
-                return usages
-            for line in lines:
+            result = _read_lines_with_fallback(log_path)
+            if result.lossy:
+                logger.warning(
+                    "Not read faithfully, some bytes could not be decoded: %s",
+                    log_path,
+                )
+            for line in result.lines:
                 try:
                     entry = json.loads(line.strip())
                     usage = self._parse_entry(entry)
@@ -117,11 +119,13 @@ class CodexParser:
         """Parse a Codex log file."""
         usages = []
         try:
-            lines = _read_lines_with_fallback(log_path)
-            if lines is None:
-                logger.warning("Could not decode %s", log_path)
-                return usages
-            for line in lines:
+            result = _read_lines_with_fallback(log_path)
+            if result.lossy:
+                logger.warning(
+                    "Not read faithfully, some bytes could not be decoded: %s",
+                    log_path,
+                )
+            for line in result.lines:
                 try:
                     entry = json.loads(line.strip())
                     usage = self._parse_entry(entry)
@@ -172,11 +176,13 @@ class HermesParser:
         """Parse a Hermes log file."""
         usages = []
         try:
-            lines = _read_lines_with_fallback(log_path)
-            if lines is None:
-                logger.warning("Could not decode %s", log_path)
-                return usages
-            for line in lines:
+            result = _read_lines_with_fallback(log_path)
+            if result.lossy:
+                logger.warning(
+                    "Not read faithfully, some bytes could not be decoded: %s",
+                    log_path,
+                )
+            for line in result.lines:
                 try:
                     entry = json.loads(line.strip())
                     usage = self._parse_entry(entry)
@@ -223,11 +229,13 @@ class OpenCodeParser:
         """Parse an OpenCode log file."""
         usages = []
         try:
-            lines = _read_lines_with_fallback(log_path)
-            if lines is None:
-                logger.warning("Could not decode %s", log_path)
-                return usages
-            for line in lines:
+            result = _read_lines_with_fallback(log_path)
+            if result.lossy:
+                logger.warning(
+                    "Not read faithfully, some bytes could not be decoded: %s",
+                    log_path,
+                )
+            for line in result.lines:
                 try:
                     entry = json.loads(line.strip())
                     usage = self._parse_entry(entry)

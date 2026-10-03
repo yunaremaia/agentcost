@@ -1,21 +1,30 @@
 """Shared text-file reading helpers for the log parsers."""
 
 from pathlib import Path
-from typing import List, Optional
+from typing import List, NamedTuple, Optional
 
-# Logs are normally UTF-8; UTF-16 and latin-1 are fallbacks for odd exports.
-_ENCODINGS = ("utf-8", "utf-16", "latin-1")
+_UTF16_BOMS = (b"\xff\xfe", b"\xfe\xff")
 
 
-def _sniff_bomless_utf16(log_path: Path) -> Optional[str]:
-    """Return "utf-16-le" or "utf-16-be" for UTF-16 text written without a BOM.
+class ReadResult(NamedTuple):
+    """Lines of a log file, and whether some bytes had to be replaced."""
 
-    JSON logs start with an ASCII character, so in UTF-16 the first two bytes
-    are that character plus a NUL. The "utf-16" codec needs a BOM, and the
-    utf-8 attempt would otherwise succeed on the NUL bytes and give mojibake.
+    lines: List[str]
+    lossy: bool = False
+
+
+def _sniff_utf16(log_path: Path) -> Optional[str]:
+    """Return the UTF-16 codec the file looks like it uses, or None.
+
+    A BOM means "utf-16". Without one, JSON logs start with an ASCII character,
+    so UTF-16 text begins with that character plus a NUL. The utf-8 attempt would
+    succeed on those NUL bytes and give mojibake, so these files are tried as
+    UTF-16 first.
     """
     with open(log_path, "rb") as f:
         head = f.read(2)
+    if head in _UTF16_BOMS:
+        return "utf-16"
     if len(head) == 2:
         if head[0] != 0 and head[1] == 0:
             return "utf-16-le"
@@ -24,19 +33,22 @@ def _sniff_bomless_utf16(log_path: Path) -> Optional[str]:
     return None
 
 
-def _read_lines_with_fallback(log_path: Path) -> Optional[List[str]]:
-    """Read a text log, retrying with fallback encodings.
+def _read_lines_with_fallback(log_path: Path) -> ReadResult:
+    """Read a text log.
 
-    Returns the lines, or None if no encoding could decode the file.
+    UTF-16 is tried only when the file looks like UTF-16, then UTF-8. If neither
+    works, the file is read as UTF-8 with the bytes it cannot decode replaced, and
+    the result is marked lossy so the caller can warn. Replacing keeps the line
+    structure, so lines that are still valid JSON are still counted.
 
     FileNotFoundError and other OSErrors propagate to the caller.
     """
-    sniffed = _sniff_bomless_utf16(log_path)
-    encodings = (sniffed,) + _ENCODINGS if sniffed else _ENCODINGS
-    for encoding in encodings:
+    utf16 = _sniff_utf16(log_path)
+    for encoding in (utf16, "utf-8") if utf16 else ("utf-8",):
         try:
             with open(log_path, encoding=encoding) as f:
-                return f.readlines()
-        except UnicodeDecodeError:
+                return ReadResult(f.readlines())
+        except UnicodeError:
             continue
-    return None
+    with open(log_path, encoding="utf-8", errors="replace") as f:
+        return ReadResult(f.readlines(), lossy=True)
