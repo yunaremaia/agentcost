@@ -191,6 +191,25 @@ If this tool is useful to you, a star helps other people find it.
 Part of a family of focused, single-purpose developer tools — each one does one thing
 and does it well.
 
+## Sponsoring / Treasury
+
+agentcost is MIT licensed and maintained in the open. Tracking real token spend across
+Claude Code, Codex CLI, OpenCode, and Hermes stays free, and keeping the per-model
+pricing tables current is the ongoing cost of getting those numbers right. If it saves
+you time, you can support continued development through GitHub Sponsors or the Solana
+treasury below.
+
+Funding details are declared in [`.github/FUNDING.yml`](.github/FUNDING.yml), which is
+what GitHub reads to render the **Sponsor** button on this repository.
+
+- **GitHub Sponsors:** [@yunaremaia](https://github.com/sponsors/yunaremaia)
+- **Solana:** `Eeztv1nCYUt1fwGWpzKC948gaWfjejYCAuLtUMgzDWbW`
+
+Use the Solana address only for intended donations. Anyone can generate a similar
+address, so verify the address against `.github/FUNDING.yml` before sending funds.
+
+If this tool is useful to you, a star helps other people find it.
+
 ## License
 
 MIT
