@@ -1,6 +1,7 @@
 """Budget management for agentcost."""
 from __future__ import annotations
 
+import json
 import math
 from pathlib import Path
 from typing import Optional
@@ -34,15 +35,73 @@ def _ensure_config_dir():
 
 
 def _load_toml_file(path: Path) -> dict:
-    """Load a TOML file and return its 'budget' section, or {} on error."""
+    """Load a TOML file and return its 'budget' section.
+
+    A missing file is an empty config. A file that exists but does not parse is
+    an error: reporting it as {} makes the CLI say "no budget configured" and
+    point at `budget set`, which would overwrite the very file the user has to
+    repair by hand.
+    """
     if not path.exists():
         return {}
     try:
         with open(path, "rb") as f:
             data = tomllib.load(f)
-            return data.get("budget", {})
-    except Exception:
-        return {}
+    except tomllib.TOMLDecodeError as e:
+        raise click.ClickException(
+            f"{path} is not valid TOML: {e}\n"
+            "Fix the file by hand, or delete it to start from scratch. "
+            "agentcost will not overwrite it."
+        ) from e
+    budget = data.get("budget", {})
+    if not isinstance(budget, dict):
+        raise click.ClickException(f"{path}: [budget] must be a table.")
+    return budget
+
+
+def _toml_value(value) -> str:
+    """Render a Python value as a TOML scalar."""
+    if isinstance(value, bool):
+        return "true" if value else "false"
+    if isinstance(value, str):
+        return json.dumps(value)
+    return repr(value)
+
+
+def _merge_budget_section(text: str, updates: dict) -> str:
+    """Return `text` with only the given keys changed inside its [budget] table.
+
+    Every other line -- other tables, comments, blank lines, the user's own
+    formatting -- is copied through verbatim, so setting a threshold cannot
+    destroy the rest of the config.
+    """
+    lines = text.splitlines()
+    start = next((i for i, l in enumerate(lines) if l.strip() == "[budget]"), None)
+    if start is None:
+        head = lines + [""] if lines else []
+        tail = ["[budget]"] + [f"{k} = {_toml_value(v)}" for k, v in updates.items()]
+        return "\n".join(head + tail) + "\n"
+
+    # The table ends at the next table header.
+    end = len(lines)
+    for i in range(start + 1, len(lines)):
+        stripped = lines[i].lstrip()
+        if stripped.startswith("[") and stripped.endswith("]"):
+            end = i
+            break
+
+    section = lines[start + 1 : end]
+    for key, value in updates.items():
+        rendered = f"{key} = {_toml_value(value)}"
+        for j, line in enumerate(section):
+            name, sep, _ = line.partition("=")
+            if sep and name.strip() == key:
+                section[j] = rendered
+                break
+        else:
+            section.append(rendered)
+
+    return "\n".join(lines[: start + 1] + section + lines[end:]) + "\n"
 
 
 def load_budget_config(cwd: Optional[Path] = None) -> dict:
@@ -90,19 +149,11 @@ def save_budget_config(daily: Optional[float] = None, weekly: Optional[float] = 
     else:
         _ensure_config_dir()
         target = CONFIG_FILE
-    
-    # Merge with existing config
-    existing = _load_toml_file(target)
-    existing.update(config)
-    
-    # Write TOML
-    lines = ["[budget]"]
-    if "daily" in existing:
-        lines.append(f'daily = {existing["daily"]}')
-    if "weekly" in existing:
-        lines.append(f'weekly = {existing["weekly"]}')
-    if "monthly" in existing:
-        lines.append(f'monthly = {existing["monthly"]}')
-    
-    target.write_text("\n".join(lines) + "\n", encoding="utf-8")
+
+    # Read the file as text and edit only the [budget] table, so other tables
+    # and comments survive. A file that does not parse raises from the load
+    # below instead of being overwritten.
+    _load_toml_file(target)
+    text = target.read_text(encoding="utf-8") if target.exists() else ""
+    target.write_text(_merge_budget_section(text, config), encoding="utf-8")
     return target
