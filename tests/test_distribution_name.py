@@ -116,6 +116,26 @@ def install_url(readme: str) -> str:
     return target
 
 
+# `pip install "name @ git+https://host/owner/repo.git"` and the bare
+# `pip install git+https://...` form. A PEP 508 direct reference puts the URL
+# after an `@`; splitting on whitespace alone leaves the `@` glued to the name
+# and the scheme glued to the host, so the URL is taken with an explicit
+# character class instead of with the last whitespace-delimited token.
+VCS_TARGET = re.compile(
+    r"(?:^|[ \t@])(?P<url>[A-Za-z][A-Za-z0-9+.-]*://[^\s\"']+)"
+)
+
+
+def install_urls(text: str) -> list[str]:
+    """Every VCS/URL install target in `text`, in order.
+
+    Used to check that an install resolves to *this* repository. Returns an
+    empty list for a registry-only install, where the distribution name is the
+    only thing on the command line and there is no clone target to verify.
+    """
+    return [m.group("url").rstrip("\\") for m in VCS_TARGET.finditer(text)]
+
+
 @pytest.fixture(scope="module")
 def readme() -> str:
     return read(README)
@@ -234,6 +254,64 @@ def test_composite_action_installs_the_distribution(readme: str) -> None:
         f"action.yml must install {project_name()!r}, found {installed}"
     )
     assert not SHORT_NAME_INSTALL.search(action)
+    # The name on the command line cannot tell a published distribution from an
+    # unpublished one: `pip install agentcost-py` passes every name assertion
+    # above and still fails at runtime with "No matching distribution found"
+    # until the distribution reaches PyPI. So while it is unpublished the action
+    # has to name a clone target, and that target has to be this repository --
+    # otherwise the action installs a same-named foreign project. Relax both
+    # halves of this block when a release is actually published to PyPI.
+    action_urls = install_urls(action)
+    assert action_urls, (
+        "action.yml installs only a distribution name from PyPI, so the action "
+        "fails until agentcost-py is published; install it from this "
+        f"repository ({project_homepage()})"
+    )
+    for url in action_urls:
+        assert project_homepage() in url, (
+            f"action.yml installs from {url!r}, which is not this repository "
+            f"({project_homepage()})"
+        )
+
+
+def test_pre_commit_hook_installs_from_this_repository() -> None:
+    """A `name @` VCS install resolves to the clone URL, not to PyPI.
+
+    The name check alone is not enough once the hook installs from source: the
+    name is read straight off the command line, so a URL pointing at another
+    repository would satisfy every name assertion while pre-commit installed a
+    foreign project. Pin the clone target the same way the README guard does.
+    """
+    hooks = read(PRE_COMMIT_HOOKS)
+    block = re.search(
+        r"^\s*additional_dependencies:\s*$(.*?)(?=^\S|\Z)",
+        hooks,
+        re.MULTILINE | re.DOTALL,
+    )
+    assert block, "no additional_dependencies in .pre-commit-hooks.yaml"
+    urls = install_urls(block.group(1))
+    assert urls, "additional_dependencies names no source to install from"
+    for url in urls:
+        assert project_homepage() in url, (
+            f"pre-commit hook installs from {url!r}, which is not this "
+            f"repository ({project_homepage()})"
+        )
+
+
+def test_vcs_install_urls_are_extracted_not_the_bare_scheme() -> None:
+    """Control: the extractor reads a real URL and rejects a foreign one.
+
+    A guard that cannot fail is worse than no guard, so this feeds the
+    extractor both a correct and a wrong clone target.
+    """
+    good = 'pip install "agentcost-py @ git+https://github.com/yunaremaia/agentcost.git"'
+    bad = 'pip install "agentcost-py @ git+https://github.com/someone-else/agentcost.git"'
+    good_urls = install_urls(good)
+    bad_urls = install_urls(bad)
+    assert good_urls == ["git+https://github.com/yunaremaia/agentcost.git"]
+    assert project_homepage() in good_urls[0]
+    assert bad_urls == ["git+https://github.com/someone-else/agentcost.git"]
+    assert project_homepage() not in bad_urls[0]
 
 
 def test_pre_commit_hook_installs_the_distribution() -> None:

@@ -4,5 +4,12 @@
   language: python
   files: '.*'
   additional_dependencies:
-    - "agentcost-py>=0.3.0"
+    # The short name `agentcost` on PyPI belongs to an unrelated project
+    # (github.com/agentcost-ai/agentcost-sdk), so this distribution is named
+    # `agentcost-py` -- and it is not on PyPI yet. Naming it here made
+    # `pre-commit install` fail with "No matching distribution found", so the
+    # hook comes straight from this repository instead. The `name @` prefix
+    # keeps pip from silently accepting a renamed project. The hook id and the
+    # `entry` console script stay `agentcost`.
+    - "agentcost-py @ git+https://github.com/yunaremaia/agentcost.git"
   args: ["--json-output"]

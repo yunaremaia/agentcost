@@ -33,7 +33,11 @@ runs:
 
     - name: Install agentcost
       shell: bash
-      run: pip install agentcost-py
+      # agentcost-py is not on PyPI yet, so a bare `pip install agentcost-py`
+      # fails with "No matching distribution found" and the action dies before
+      # it runs anything. Install from this repository instead. The name is
+      # pinned so pip refuses the install if the distribution is ever renamed.
+      run: pip install "agentcost-py @ git+https://github.com/yunaremaia/agentcost.git"
 
     - name: Run agentcost
       id: agentcost
