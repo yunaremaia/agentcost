@@ -10,7 +10,7 @@ from rich.console import Console
 from rich.table import Table
 from rich.panel import Panel
 
-from agentcost.cost import TokenUsage, calculate_cost, summarize_usage
+from agentcost.cost import TokenUsage, calculate_cost, summarize_usage, _ensure_utc
 from agentcost.parsers import ClaudeCodeParser, CodexParser, HermesParser, OpenCodeParser
 from agentcost.cursor_parser import CursorParser
 from agentcost.hermes_sqlite import HermesSQLiteParser
@@ -342,14 +342,14 @@ def today(log_paths, agent, date, json_out, quiet=False):
     """Show today's token usage (or a specific date with --date)."""
     usages = _parse_all_logs(list(log_paths) if log_paths else None, agent=agent)
     
-    from datetime import datetime, timedelta
+    from datetime import datetime, timedelta, timezone
     if date:
-        target_date = datetime.strptime(date, "%Y-%m-%d")
+        target_date = _ensure_utc(datetime.strptime(date, "%Y-%m-%d"))
         today_start = target_date.replace(hour=0, minute=0, second=0, microsecond=0)
         today_end = today_start + timedelta(days=1)
         usages = [u for u in usages if u.timestamp and today_start <= u.timestamp < today_end]
     else:
-        today_start = datetime.now().replace(hour=0, minute=0, second=0, microsecond=0)
+        today_start = datetime.now(timezone.utc).replace(hour=0, minute=0, second=0, microsecond=0)
         usages = [u for u in usages if u.timestamp and u.timestamp >= today_start]
     
     if not usages:
@@ -404,14 +404,14 @@ def today(log_paths, agent, date, json_out, quiet=False):
 @click.option("--quiet", "-q", is_flag=True, help="Suppress rich formatting and output JSON only")
 def week(days, date, log_paths, agent, json_out, quiet=False):
     """Show usage for the last N days ending on a specific date (default: today)."""
-    from datetime import datetime, timedelta
-    
+    from datetime import datetime, timedelta, timezone
+
     usages = _parse_all_logs(list(log_paths) if log_paths else None, agent=agent)
     if date:
-        end_date = datetime.strptime(date, "%Y-%m-%d") + timedelta(days=1)
+        end_date = _ensure_utc(datetime.strptime(date, "%Y-%m-%d")) + timedelta(days=1)
         cutoff = end_date - timedelta(days=days)
     else:
-        cutoff = datetime.now() - timedelta(days=days)
+        cutoff = datetime.now(timezone.utc) - timedelta(days=days)
     usages = [u for u in usages if u.timestamp and u.timestamp >= cutoff]
     
     if not usages:
@@ -486,10 +486,10 @@ def week(days, date, log_paths, agent, json_out, quiet=False):
 def alert(log_paths, agent, threshold, as_sarif, quiet=False):
     """Check if spending exceeds threshold today."""
     validate_threshold(threshold, "--threshold")
-    from datetime import datetime
-    
+    from datetime import datetime, timezone
+
     usages = _parse_all_logs(list(log_paths) if log_paths else None, agent=agent)
-    today_start = datetime.now().replace(hour=0, minute=0, second=0, microsecond=0)
+    today_start = datetime.now(timezone.utc).replace(hour=0, minute=0, second=0, microsecond=0)
     usages = [u for u in usages if u.timestamp and u.timestamp >= today_start]
     
     total_cost = sum(calculate_cost(u) for u in usages)
@@ -653,7 +653,7 @@ def budget(action, daily, weekly, monthly, as_sarif, quiet=False):
         if "monthly" in config:
             console.print(f"  Monthly: ${config['monthly']:.2f}")
     elif action == "check":
-        from datetime import datetime
+        from datetime import datetime, timezone
         config = load_budget_config()
         if not config:
             console.print("[yellow]No budget thresholds set. Run 'agentcost budget set' first.[/yellow]")
@@ -668,7 +668,7 @@ def budget(action, daily, weekly, monthly, as_sarif, quiet=False):
             console.print("[yellow]No usage data found.[/yellow]")
             sys.exit(0)
 
-        now = datetime.now()
+        now = datetime.now(timezone.utc)
         exit_code = 0
         actuals = {}
 
@@ -763,7 +763,7 @@ def analyze(log_path, agent, period, date, output_format, quiet=False, strict=Fa
         return
     
     from datetime import datetime
-    target_date = datetime.strptime(date, "%Y-%m-%d") if date else None
+    target_date = _ensure_utc(datetime.strptime(date, "%Y-%m-%d")) if date else None
     
     gen = ReportGenerator()
     if period == "daily":
@@ -792,7 +792,7 @@ def analyze(log_path, agent, period, date, output_format, quiet=False, strict=Fa
 @click.option("--quiet", "-q", is_flag=True, help="Quiet output (JSON format)")
 def compare(log_paths, period, output_format, quiet=False):
     """Compare costs across agents for a given period."""
-    from datetime import datetime
+    from datetime import datetime, timezone
     
     log_paths = list(log_paths) if log_paths else None
     usages = _parse_all_logs(log_paths)
@@ -802,7 +802,7 @@ def compare(log_paths, period, output_format, quiet=False):
         return
     
     # Filter by period
-    cutoff = _period_start(datetime.now(), period)
+    cutoff = _period_start(datetime.now(timezone.utc), period)
     
     usages = [u for u in usages if u.timestamp and u.timestamp >= cutoff]
     

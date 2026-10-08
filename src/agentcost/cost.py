@@ -1,8 +1,15 @@
 """Token cost tracker for AI agent sessions."""
 
 from dataclasses import dataclass
-from datetime import datetime
+from datetime import datetime, timezone
 from typing import List, Optional
+
+
+def _ensure_utc(value: datetime) -> datetime:
+    """Return an aware UTC datetime, treating naive values as UTC."""
+    if value.tzinfo is None:
+        return value.replace(tzinfo=timezone.utc)
+    return value.astimezone(timezone.utc)
 
 
 @dataclass
@@ -16,6 +23,10 @@ class TokenUsage:
     timestamp: Optional[datetime] = None
     agent_id: Optional[str] = None
     session_id: Optional[str] = None
+
+    def __post_init__(self) -> None:
+        if self.timestamp is not None:
+            self.timestamp = _ensure_utc(self.timestamp)
 
     @property
     def total_tokens(self) -> int:

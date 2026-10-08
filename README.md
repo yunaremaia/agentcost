@@ -69,6 +69,8 @@ agentcost cron --json-output                 # machine-readable cron summary
 agentcost analyze ~/.claude/projects/my-session.jsonl --agent claude --period daily
 ```
 
+Monthly projections use the most recent seven days in the data, ending at the latest log timestamp, so replaying historical logs produces the same result.
+
 ## Budget & Compare
 
 ### Spending budgets

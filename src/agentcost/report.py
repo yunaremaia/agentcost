@@ -1,9 +1,9 @@
 """Report generation for cost analysis."""
 
 from typing import List, Dict, Optional
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, timezone
 
-from agentcost.cost import TokenUsage, CostBreakdown, calculate_cost, summarize_usage
+from agentcost.cost import TokenUsage, CostBreakdown, calculate_cost, summarize_usage, _ensure_utc
 
 
 class ReportGenerator:
@@ -11,8 +11,7 @@ class ReportGenerator:
 
     def daily_summary(self, usages: List[TokenUsage], date: Optional[datetime] = None) -> Dict:
         """Generate summary for a specific date."""
-        if date is None:
-            date = datetime.now()
+        date = _ensure_utc(date) if date else datetime.now(timezone.utc)
         
         day_start = date.replace(hour=0, minute=0, second=0, microsecond=0)
         day_end = day_start + timedelta(days=1)
@@ -26,8 +25,7 @@ class ReportGenerator:
 
     def weekly_summary(self, usages: List[TokenUsage], date: Optional[datetime] = None) -> Dict:
         """Generate summary for the week containing date."""
-        if date is None:
-            date = datetime.now()
+        date = _ensure_utc(date) if date else datetime.now(timezone.utc)
         
         week_start = date - timedelta(days=date.weekday())
         week_start = week_start.replace(hour=0, minute=0, second=0, microsecond=0)
@@ -42,8 +40,7 @@ class ReportGenerator:
 
     def monthly_summary(self, usages: List[TokenUsage], date: Optional[datetime] = None) -> Dict:
         """Generate summary for the month containing date."""
-        if date is None:
-            date = datetime.now()
+        date = _ensure_utc(date) if date else datetime.now(timezone.utc)
         
         month_start = date.replace(day=1, hour=0, minute=0, second=0, microsecond=0)
         if month_start.month == 12:
@@ -63,16 +60,17 @@ class ReportGenerator:
         if not usages:
             return {"projected_monthly": 0.0, "days_of_data": 0}
         
-        # Use last 7 days for projection
-        now = datetime.now()
-        cutoff = now - timedelta(days=7)
-        
-        recent = [u for u in usages if u.timestamp and u.timestamp >= cutoff]
-        if not recent:
-            recent = usages[-50:]  # Last 50 entries
-        
+        timestamped = [u for u in usages if u.timestamp]
+        if timestamped:
+            latest = max(u.timestamp for u in timestamped)
+            cutoff = latest - timedelta(days=7)
+            recent = [u for u in timestamped if u.timestamp >= cutoff]
+            days = max((latest - min(u.timestamp for u in recent)).days, 1)
+        else:
+            recent = usages[-50:]
+            days = 1
+
         total_cost = sum(calculate_cost(u) for u in recent)
-        days = max((now - recent[0].timestamp).days, 1) if recent[0].timestamp else 1
         
         daily_avg = total_cost / days
         projected = daily_avg * 30

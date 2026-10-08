@@ -1,7 +1,7 @@
 """SQLite parser for Hermes agent state database."""
 
 import sqlite3
-from datetime import datetime
+from datetime import datetime, timezone
 from pathlib import Path
 from typing import List
 
@@ -40,8 +40,8 @@ class HermesSQLiteParser:
                 
                 for row in cursor.fetchall():
                     # Convert Unix timestamps to datetime
-                    first_seen = datetime.fromtimestamp(row["first_seen"]) if row["first_seen"] else None
-                    last_seen = datetime.fromtimestamp(row["last_seen"]) if row["last_seen"] else None
+                    first_seen = datetime.fromtimestamp(row["first_seen"], timezone.utc) if row["first_seen"] else None
+                    last_seen = datetime.fromtimestamp(row["last_seen"], timezone.utc) if row["last_seen"] else None
                     
                     usage = TokenUsage(
                         model=row["model"],
@@ -71,7 +71,7 @@ class HermesSQLiteParser:
                 row = cursor.fetchone()
                 
                 if row and row[0] and row[1]:
-                    return datetime.fromtimestamp(row[0]), datetime.fromtimestamp(row[1])
+                    return datetime.fromtimestamp(row[0], timezone.utc), datetime.fromtimestamp(row[1], timezone.utc)
         except (sqlite3.Error, OSError):
             pass
         

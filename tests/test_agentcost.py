@@ -1,7 +1,7 @@
 """Tests for agentcost."""
 
 import pytest
-from datetime import datetime
+from datetime import datetime, timedelta, timezone
 from pathlib import Path
 import json
 import tempfile
@@ -357,6 +357,31 @@ class TestReportGenerator:
         assert projection["projected_monthly_usd"] > 0
         assert "daily_average_usd" in projection
 
+    def test_summaries_accept_naive_and_aware_timestamps(self):
+        date = datetime(2026, 1, 15, 12)
+        usages = [
+            TokenUsage("gpt-4o", 100, 50, timestamp=date),
+            TokenUsage("gpt-4o", 100, 50, timestamp=date.replace(tzinfo=timezone.utc)),
+        ]
+        gen = ReportGenerator()
+
+        assert gen.daily_summary(usages, date)["total_calls"] == 2
+        assert gen.weekly_summary(usages, date)["total_calls"] == 2
+        assert gen.monthly_summary(usages, date)["total_calls"] == 2
+
+    def test_projection_uses_latest_data_timestamp(self):
+        first = datetime(2020, 1, 1, tzinfo=timezone.utc)
+        usages = [
+            TokenUsage("gpt-4o", 1_000, 500, timestamp=first),
+            TokenUsage("gpt-4o", 1_000, 500, timestamp=first + timedelta(days=7)),
+        ]
+        gen = ReportGenerator()
+
+        projection = gen.projection(usages)
+
+        assert projection["days_of_data"] == 7
+        assert projection == gen.projection(usages)
+
     def test_empty_usages(self):
         gen = ReportGenerator()
         report = gen.daily_summary([])
@@ -376,3 +401,7 @@ class TestTokenUsage:
             cache_write_tokens=100,
         )
         assert usage.total_tokens == 1800
+
+    def test_timestamp_is_normalized_to_utc(self):
+        usage = TokenUsage("gpt-4o", 1, 1, timestamp=datetime(2026, 1, 1))
+        assert usage.timestamp.tzinfo is timezone.utc

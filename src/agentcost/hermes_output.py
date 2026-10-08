@@ -8,7 +8,7 @@ from __future__ import annotations
 import json
 import logging
 import re
-from datetime import datetime
+from datetime import datetime, timezone
 from pathlib import Path
 from agentcost.cost import TokenUsage
 
@@ -160,7 +160,7 @@ class HermesOutputParser:
             # Try to parse timestamp
             dt = datetime.strptime(filename, "%Y-%m-%d_%H-%M-%S")
         except ValueError:
-            dt = datetime.fromtimestamp(filepath.stat().st_mtime)
+            dt = datetime.fromtimestamp(filepath.stat().st_mtime, timezone.utc)
         
         # Estimate total content tokens
         total_content_tokens = _estimate_tokens_from_text(content)

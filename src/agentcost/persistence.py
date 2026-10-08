@@ -2,7 +2,7 @@
 from __future__ import annotations
 
 import sqlite3
-from datetime import datetime
+from datetime import datetime, timezone
 from pathlib import Path
 from typing import Optional
 
@@ -72,7 +72,7 @@ class CostPersistence:
             estimated_cost,
             actual_cost,
             usage.agent_id,
-            usage.timestamp.isoformat() if usage.timestamp else datetime.now().isoformat(),
+            usage.timestamp.isoformat() if usage.timestamp else datetime.now(timezone.utc).isoformat(),
         ))
         conn.commit()
         conn.close()
@@ -97,7 +97,7 @@ class CostPersistence:
                 estimated,
                 actual,
                 usage.agent_id,
-                usage.timestamp.isoformat() if usage.timestamp else datetime.now().isoformat(),
+                usage.timestamp.isoformat() if usage.timestamp else datetime.now(timezone.utc).isoformat(),
             ))
         conn.commit()
         conn.close()
