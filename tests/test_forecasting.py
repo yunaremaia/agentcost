@@ -56,3 +56,80 @@ def test_daily_costs_skips_missing_timestamps():
     totals = daily_costs_by_date(usages)
     assert list(totals) == [ts.date()]
     assert totals[ts.date()] > 0
+
+def _write_log(tmp_path: Path, days_ago):
+    """Claude-style JSONL log with one 1M-token call per listed day offset."""
+    log_dir = tmp_path / "claude_logs"
+    log_dir.mkdir()
+    log_file = log_dir / "claude_session.jsonl"
+    lines = []
+    for d in days_ago:
+        entry = {
+            "type": "assistant",
+            "timestamp": (datetime.now() - timedelta(days=d)).isoformat(),
+            "message": {
+                "model": "claude-3-5-sonnet",
+                "usage": {"input_tokens": 1_000_000, "output_tokens": 500},
+            },
+        }
+        lines.append(json.dumps(entry))
+    log_file.write_text("\n".join(lines) + "\n")
+    return log_file
+
+
+def _run(log, *extra):
+    return CliRunner().invoke(cli, ["forecast", "-p", str(log), "-a", "claude", *extra])
+
+
+def test_forecast_json_output(tmp_path):
+    log = _write_log(tmp_path, range(1, 11))
+    result = _run(log, "--days", "30", "--json")
+    assert result.exit_code == 0
+    data = json.loads(result.output)
+    assert data["forecast_days"] == 30
+    assert data["projected_total_usd"] > 0
+    assert data["over_budget"] is False
+    assert data["milestones"][-1]["days"] == 30
+
+
+def test_forecast_table_output(tmp_path):
+    log = _write_log(tmp_path, range(1, 11))
+    result = _run(log, "--days", "30")
+    assert result.exit_code == 0
+    assert "Cost forecast" in result.output
+
+
+def test_forecast_over_budget_exits_1(tmp_path):
+    log = _write_log(tmp_path, range(1, 11))
+    result = _run(log, "--days", "30", "--budget", "1")
+    assert result.exit_code == 1
+    assert "WARNING" in result.output
+
+
+def test_forecast_under_budget_exits_0(tmp_path):
+    log = _write_log(tmp_path, range(1, 11))
+    result = _run(log, "--days", "30", "--budget", "100000")
+    assert result.exit_code == 0
+
+
+def test_forecast_quiet_over_budget_is_silent_exit_1(tmp_path):
+    log = _write_log(tmp_path, range(1, 11))
+    result = _run(log, "--days", "30", "--budget", "1", "-q")
+    assert result.exit_code == 1
+    assert "WARNING" not in result.output
+
+
+def test_forecast_needs_history(tmp_path):
+    log = _write_log(tmp_path, [0])  # only today, which is excluded
+    result = _run(log)
+    assert result.exit_code == 2
+
+
+def test_forecast_rejects_non_positive_budget(tmp_path):
+    log = _write_log(tmp_path, range(1, 11))
+    result = _run(log, "--budget", "0")
+    assert result.exit_code == 2
+
+def test_zero_horizon_rejected():
+    with pytest.raises(ValueError):
+        forecast([1.0, 2.0, 3.0], MONDAY, 0)
